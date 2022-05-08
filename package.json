@@ -19,10 +19,11 @@
   },
   "homepage": "https://github.com/dinhhuyanh99/micro-learning-998-backend#readme",
   "dependencies": {
-    "body-parser": "^1.19.2",
+    "bcrypt": "^5.0.1",
+    "body-parser": "^1.20.0",
     "cors": "^2.8.5",
-    "express": "^4.17.3",
-    "mongoose": "^6.2.8",
+    "express": "^4.18.0",
+    "mongoose": "^6.3.1",
     "nodemon": "^2.0.15"
   }
 }

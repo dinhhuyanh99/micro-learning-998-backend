@@ -11,6 +11,14 @@ const express = require('express'),
 rootRouter.use('/users', userRouter);
 rootRouter.use('/courses', coursesRouter);
 rootRouter.use('/payments', paymentsRouter);
+rootRouter.use(function(req, res, next) {
+    if (!req.route){
+        res.status(404).json({
+            'response': 'Invalid path!'
+        });
+    }
+    next();
+});
 
 // Export module
 module.exports = rootRouter;
