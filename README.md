@@ -17,6 +17,7 @@ The API service is hosted at ``` <to be decided> ```
 
 * [Node.js](https://nodejs.org/) - evented I/O for the backend
 * [cors](https://www.npmjs.com/package/cors) - a node.js package to provide option to enable CORS
+* [bcrypt](https://www.npmjs.com/package/bcrypt) - a node.js package to provide option to hash password
 * [express](http://expressjs.com) - fast node.js network app framework [@tjholowaychuk]
 * [mongoose](https://www.npmjs.com/package/mongoose) - a [MongoDB](https://www.mongodb.com/) object modeling tool designed to work in an asynchronous environment
 * [body-parser](https://www.npmjs.com/package/body-parser) - a parsing middleware that helps with translating the URL into usable format
