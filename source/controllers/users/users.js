@@ -4,7 +4,10 @@ const mongoose = require("mongoose"),
     Users = mongoose.model("Users"),
     { TeacherSchema } = require("../../models/users/teachers"),
     { StudentSchema } = require("../../models/users/students"),
+    { AdminSchema } = require("../../models/users/admin"),
+    { SuperUserSchema } = require("../../models/users/superuser"),
     Keys = mongoose.model("Keys"),
+    configParams = require('../../../config.json'),
     bcrypt = require("bcrypt");
 
 function cryptPassword(password) {
@@ -94,9 +97,17 @@ exports.userLogin = function (req, res) {
                                         if (doc.__t === "Teachers") {
                                             returnResult.userDetails.coursesTaught =
                                                 doc.coursesTaught;
+                                            returnResult.userDetails.flag = "t";
                                         } else if (doc.__t === "Students") {
                                             returnResult.userDetails.coursesLearnt =
                                                 doc.coursesLearnt;
+                                            returnResult.userDetails.flag = "s";
+                                        } else if(doc.__t === "Admin") {
+                                            console.log("Admin logged in at [" + new Date().toLocaleDateString() + "]. Admin username: [" + doc.username + "].");
+                                            returnResult.userDetails.flag = "a";
+                                        } else if (doc.__t === "SuperUser") {
+                                            console.log("SuperUser logged in at [" + new Date().toLocaleDateString() + "]. SuperUser username: [" + doc.username + "].");
+                                            returnResult.userDetails.flag = "su";
                                         }
                                         newKey
                                             .save()
@@ -172,9 +183,17 @@ exports.userLogin = function (req, res) {
                                                     if (doc.__t === "Teachers") {
                                                         returnResult.userDetails.coursesTaught =
                                                             doc.coursesTaught;
+                                                        returnResult.userDetails.flag = "t";
                                                     } else if (doc.__t === "Students") {
                                                         returnResult.userDetails.coursesLearnt =
                                                             doc.coursesLearnt;
+                                                        returnResult.userDetails.flag = "s";
+                                                    } else if (doc.__t === "Admin") {
+                                                        console.log("Admin logged in at [" + new Date().toLocaleDateString() + "]. Admin username: [" + doc.username + "].");
+                                                        returnResult.userDetails.flag = "a";
+                                                    } else if (doc.__t === "SuperUser") {
+                                                        console.log("SuperUser logged in at [" + new Date().toLocaleDateString() + "]. SuperUser username: [" + doc.username + "].");
+                                                        returnResult.userDetails.flag = "su";
                                                     }
                                                     newKey
                                                         .save()
@@ -247,9 +266,17 @@ exports.userLogin = function (req, res) {
                                                 if (doc.__t === "Teachers") {
                                                     returnResult.userDetails.coursesTaught =
                                                         doc.coursesTaught;
+                                                    returnResult.userDetails.flag = "t";
                                                 } else if (doc.__t === "Students") {
                                                     returnResult.userDetails.coursesLearnt =
                                                         doc.coursesLearnt;
+                                                    returnResult.userDetails.flag = "s";
+                                                } else if (doc.__t === "Admin") {
+                                                    console.log("Admin logged in at [" + new Date().toLocaleDateString() + "]. Admin username: [" + doc.username + "].");
+                                                    returnResult.userDetails.flag = "a";
+                                                } else if (doc.__t === "SuperUser") {
+                                                    console.log("SuperUser logged in at [" + new Date().toLocaleDateString() + "]. SuperUser username: [" + doc.username + "].");
+                                                    returnResult.userDetails.flag = "su";
                                                 }
                                                 res.status(200).json(returnResult);
                                                 break;
@@ -381,6 +408,46 @@ exports.userSignup = function (req, res) {
                                         zipCode: req.body.zipCode,
                                         gender: req.body.gender,
                                     });
+                                } else if (req.body.userType == 0){
+                                    if (req.header('Admin-Key') != configParams.secretAdminKey){
+                                        res.status(500).json({ errorCode: 500, errorMessage: "Invalid Admin key! Contact Admin to create SuperUser account!" });
+                                    } else {
+                                        newUser = new SuperUserSchema({
+                                            email: req.body.email,
+                                            username: req.body.username,
+                                            password: cryptPassword(req.body.password),
+                                            phoneNumber: req.body.phoneNumber,
+                                            firstName: req.body.firstName,
+                                            lastName: req.body.lastName,
+                                            dateOfBirth: req.body.dateOfBirth,
+                                            address: req.body.address,
+                                            countryRegion: req.body.countryRegion,
+                                            city: req.body.city,
+                                            streetProvince: req.body.streetProvince,
+                                            zipCode: req.body.zipCode,
+                                            gender: req.body.gender,
+                                        });
+                                    }
+                                } else if (req.body.userType == -1) {
+                                    if (req.header('Admin-Key') != configParams.secretAdminKey) {
+                                        res.status(500).json({ errorCode: 500});
+                                    } else {
+                                        newUser = new AdminSchema({
+                                            email: req.body.email,
+                                            username: req.body.username,
+                                            password: cryptPassword(req.body.password),
+                                            phoneNumber: req.body.phoneNumber,
+                                            firstName: req.body.firstName,
+                                            lastName: req.body.lastName,
+                                            dateOfBirth: req.body.dateOfBirth,
+                                            address: req.body.address,
+                                            countryRegion: req.body.countryRegion,
+                                            city: req.body.city,
+                                            streetProvince: req.body.streetProvince,
+                                            zipCode: req.body.zipCode,
+                                            gender: req.body.gender,
+                                        });
+                                    }
                                 }
                                 newUser
                                     .save()
