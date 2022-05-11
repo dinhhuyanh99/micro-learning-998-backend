@@ -4,13 +4,13 @@ const express = require('express'),
     mongoose = require('mongoose'),
     cors = require('cors'),
     bodyParser = require('body-parser'),
-    configParams = require('./config.json'),
     Users = require('./source/models/users'),
     Teachers = require('./source/models/users/teachers'),
     Students = require('./source/models/users/students'),
     Keys = require('./source/models/APIKeys'),
     rootRouter = require('./source/routes/routes'),
     {EOL} = require('os');
+var configParams = null;
 
 // Get an instance of express running
 const mainApi = express();
@@ -30,6 +30,15 @@ function isEmpty(obj) {
     return JSON.stringify(obj) === JSON.stringify({});
 }
 
+
+// Check for the config file first!
+try {
+    configParams = require('./config.json');
+} catch (ex) {
+    console.error('X Cannot find the configurations! Please ensure config.json is in the same folder as the server.js file and restart the application!');
+    process.exit();
+}
+
 // Allowing the main api to accept urlencoded content and json content
 console.debug('-> Allowing the main api to accept urlencoded content and json content . . .');
 mainApi.use(bodyParser.urlencoded({extended: true}));
@@ -44,7 +53,7 @@ try {
     console.debug('-> Establish connection to mongodb db on the atlas cluster . . .');
 	mongoose.Promise = global.Promise;
     if(isEmpty(configParams)){
-        console.error('X Cannot find the configurations! Please ensure config.json is in the same folder as the server.js file!');
+        console.error('X Cannot find the configurations! Please ensure config.json is in the same folder as the server.js file and is not empty!');
         process.exit();
     } else {
         // console.debug('mongodb+srv://' + encodeURIComponent(configParams.dbUsername) + ':' + encodeURIComponent(configParams.dbPassword) + '@' + configParams.dbUrl + '/' + configParams.defaultDatabase + '?retryWrites=true&w=majority');
