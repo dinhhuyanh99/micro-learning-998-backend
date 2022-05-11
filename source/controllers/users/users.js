@@ -416,44 +416,52 @@ exports.userSignup = function (req, res) {
                                         gender: req.body.gender,
                                     });
                                 } else if (req.body.userType == 0) {
-                                    if (req.header('Admin-Key') != configParams.secretAdminKey) {
-                                        res.status(500).json({ errorCode: 500, errorMessage: "Invalid Admin key! Contact Admin to create SuperUser account!" });
+                                    if (configParams.secretAdminKey == undefined || configParams.secretAdminKey == "" || configParams.secretAdminKey == null) {
+                                        res.status(500).json({ errorCode: 500, errorMessage: "Admin key is not configured! Contact admin to configure this on the backend." });
                                     } else {
-                                        newUser = new SuperUserSchema({
-                                            email: req.body.email,
-                                            username: req.body.username,
-                                            password: cryptPassword(req.body.password),
-                                            phoneNumber: req.body.phoneNumber,
-                                            firstName: req.body.firstName,
-                                            lastName: req.body.lastName,
-                                            dateOfBirth: req.body.dateOfBirth,
-                                            address: req.body.address,
-                                            countryRegion: req.body.countryRegion,
-                                            city: req.body.city,
-                                            streetProvince: req.body.streetProvince,
-                                            zipCode: req.body.zipCode,
-                                            gender: req.body.gender,
-                                        });
+                                        if (req.header('Admin-Key') != configParams.secretAdminKey) {
+                                            res.status(500).json({ errorCode: 500, errorMessage: "Invalid Admin key! Contact Admin to create SuperUser account!" });
+                                        } else {
+                                            newUser = new SuperUserSchema({
+                                                email: req.body.email,
+                                                username: req.body.username,
+                                                password: cryptPassword(req.body.password),
+                                                phoneNumber: req.body.phoneNumber,
+                                                firstName: req.body.firstName,
+                                                lastName: req.body.lastName,
+                                                dateOfBirth: req.body.dateOfBirth,
+                                                address: req.body.address,
+                                                countryRegion: req.body.countryRegion,
+                                                city: req.body.city,
+                                                streetProvince: req.body.streetProvince,
+                                                zipCode: req.body.zipCode,
+                                                gender: req.body.gender,
+                                            });
+                                        }
                                     }
                                 } else if (req.body.userType == -1) {
-                                    if (req.header('Admin-Key') != configParams.secretAdminKey) {
-                                        res.status(500).json({ errorCode: 500 });
+                                    if (configParams.secretAdminKey == undefined || configParams.secretAdminKey == "" || configParams.secretAdminKey == null) {
+                                        res.status(500).json({ errorCode: 500, errorMessage: "Admin key is not configured! Contact admin to configure this on the backend." });
                                     } else {
-                                        newUser = new AdminSchema({
-                                            email: req.body.email,
-                                            username: req.body.username,
-                                            password: cryptPassword(req.body.password),
-                                            phoneNumber: req.body.phoneNumber,
-                                            firstName: req.body.firstName,
-                                            lastName: req.body.lastName,
-                                            dateOfBirth: req.body.dateOfBirth,
-                                            address: req.body.address,
-                                            countryRegion: req.body.countryRegion,
-                                            city: req.body.city,
-                                            streetProvince: req.body.streetProvince,
-                                            zipCode: req.body.zipCode,
-                                            gender: req.body.gender,
-                                        });
+                                        if (req.header('Admin-Key') != configParams.secretAdminKey) {
+                                            res.status(500).json({ errorCode: 500 });
+                                        } else {
+                                            newUser = new AdminSchema({
+                                                email: req.body.email,
+                                                username: req.body.username,
+                                                password: cryptPassword(req.body.password),
+                                                phoneNumber: req.body.phoneNumber,
+                                                firstName: req.body.firstName,
+                                                lastName: req.body.lastName,
+                                                dateOfBirth: req.body.dateOfBirth,
+                                                address: req.body.address,
+                                                countryRegion: req.body.countryRegion,
+                                                city: req.body.city,
+                                                streetProvince: req.body.streetProvince,
+                                                zipCode: req.body.zipCode,
+                                                gender: req.body.gender,
+                                            });
+                                        }
                                     }
                                 }
                                 newUser
