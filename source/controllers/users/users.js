@@ -102,7 +102,7 @@ exports.userLogin = function (req, res) {
                                             returnResult.userDetails.coursesLearnt =
                                                 doc.coursesLearnt;
                                             returnResult.userDetails.flag = "s";
-                                        } else if(doc.__t === "Admin") {
+                                        } else if (doc.__t === "Admin") {
                                             console.log("Admin logged in at [" + new Date().toLocaleDateString() + "]. Admin username: [" + doc.username + "].");
                                             returnResult.userDetails.flag = "a";
                                         } else if (doc.__t === "SuperUser") {
@@ -311,13 +311,20 @@ exports.userLogout = function (req, res) {
     if (req.header('APIKEY') == undefined || req.header('APIKEY') == "") {
         res.status(400).json({ 'errorCode': 400, 'errorMessage': "Bad request made! Please insert the API key into the headers with Key is APIKEY and type is text/plain!" });
     } else {
-        Keys.deleteOne({ key: req.header('APIKEY') }, function (err, result) {
-            if (result.deletedCount != 1) {
-                res.status(500).json({ 'errorCode': 500, 'errorMessage': "The API key does not exist! Please check again!" });
-            } else {
-                res.status(200).json({ 'result': 'Successfully sign out!' });
-            }
-        });
+
+        Keys.updateOne({ key: req.header('APIKEY') }, { expiredOn: new Date() },
+            function (errorUpdatingKey, updatingResult) {
+                if (errorUpdatingKey) {
+                    res
+                        .status(500)
+                        .json({
+                            errorCode: 500,
+                            errorMessage: errorUpdatingKey,
+                        });
+                } else {
+                    res.status(200).json({ 'result': 'Successfully sign out!' });
+                }
+            });
     }
 };
 
@@ -408,8 +415,8 @@ exports.userSignup = function (req, res) {
                                         zipCode: req.body.zipCode,
                                         gender: req.body.gender,
                                     });
-                                } else if (req.body.userType == 0){
-                                    if (req.header('Admin-Key') != configParams.secretAdminKey){
+                                } else if (req.body.userType == 0) {
+                                    if (req.header('Admin-Key') != configParams.secretAdminKey) {
                                         res.status(500).json({ errorCode: 500, errorMessage: "Invalid Admin key! Contact Admin to create SuperUser account!" });
                                     } else {
                                         newUser = new SuperUserSchema({
@@ -430,7 +437,7 @@ exports.userSignup = function (req, res) {
                                     }
                                 } else if (req.body.userType == -1) {
                                     if (req.header('Admin-Key') != configParams.secretAdminKey) {
-                                        res.status(500).json({ errorCode: 500});
+                                        res.status(500).json({ errorCode: 500 });
                                     } else {
                                         newUser = new AdminSchema({
                                             email: req.body.email,
