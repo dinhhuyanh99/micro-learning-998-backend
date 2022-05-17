@@ -13,7 +13,7 @@ userRouter.put('/updateUserDetails', usersControllers.updateUserDetails);
 // Admin/SuperUser Stuffs
 userRouter.get('/admin/getUsersDetails', usersControllers.getUsersAdmin);
 userRouter.put('/admin/updateUserStatusAdmin', usersControllers.updateUserStatusAdmin);
-userRouter.delete('/admin/updateUserStatusAdmin', usersControllers.updateUserStatusAdmin);
+userRouter.delete('/admin/deleteUser', usersControllers.deleteUserAdmin);
 
 module.exports = userRouter;
 

@@ -851,3 +851,35 @@ This will delete all references to them in courses object (if there are more tha
 We will also delete all the notes the user's made, all references to the API Keys and uploaded files (files that have been uploaded will be turned into anonymous upload)
 // To be implemented
 */
+exports.deleteUserAdmin = function (req, res) {
+    const APIKEY = req.header('APIKEY');
+    Keys.findOne({ key: APIKEY }).populate('userId').then((success_callback) => {
+        if (success_callback != null || success_callback != undefined) {
+            var currentDate = new Date(Date.now());
+            var expiredDate = new Date(success_callback.expiredOn);
+            if ((currentDate.getTime()) >= (expiredDate.getTime())) {
+                res.status(401).json({ 'errorCode': 401, 'errorMessage': "Unauthorized access! API Key is outdated. Please login and try again!" });
+            } else {
+                if (success_callback.userId.accountType != 1) {
+                    res.status(401).json({ 'errorCode': 401, 'errorMessage': "Unauthorized access! This API Key is not an admin key. Please try again!" });
+                } else {
+                    if (req._parsedUrl.query == null || req._parsedUrl.query == undefined) {
+                        res.status(411).json({ 'errorCode': 411, 'errorMessage': "Missing userId!" })
+                    } else {
+                        if (req.query.user_id == "" || req.query.user_id == undefined || req.query.user_id == null) {
+                            res.status(411).json({ 'errorCode': 411, 'errorMessage': "Missing userId!" })
+                        } else {
+                            if ((req.query.user_id) == (success_callback.userId._id.toString())) {
+                                res.status(403).json({ 'errorCode': 403, 'errorMessage': "Action is forbidden on your own account!" });
+                            } else {
+                                
+                            }
+                        }
+                    }
+                }
+            }
+        } else {
+            res.status(401).json({ 'errorCode': 401, 'errorMessage': "Unauthorized access! API Key not found in the server, please login and try again!" });
+        }
+    });
+}
