@@ -2,12 +2,12 @@
 
 const mongoose = require("mongoose"),
     Users = mongoose.model("Users"),
-    { TeacherSchema } = require("../../models/users/teachers"),
-    { StudentSchema } = require("../../models/users/students"),
-    { AdminSchema } = require("../../models/users/admin"),
-    { SuperUserSchema } = require("../../models/users/superuser"),
+    { TeacherSchema } = require("../models/users/teachers"),
+    { StudentSchema } = require("../models/users/students"),
+    { AdminSchema } = require("../models/users/admin"),
+    { SuperUserSchema } = require("../models/users/superuser"),
     Keys = mongoose.model("Keys"),
-    configParams = require('../../../config.json'),
+    configParams = require('../../config.json'),
     bcrypt = require("bcrypt");
 
 function cryptPassword(password) {
