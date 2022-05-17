@@ -18,7 +18,17 @@ function cryptPassword(password) {
 function comparePassword(plainPass, hashword) {
     return bcrypt.compareSync(plainPass, hashword);
 }
-
+/*
+This is controller that is responsible for letting the user sign-in
+The paths to the corresponding functions shall be listed below and all of the path requires HTTP
+POST method with the correct information
+This is used for logging into the system by requiring you to POST to the path
+the username and password, which will return an API key that you will need to save in order to use
+any of the other path later on for the duration of the session that you will use the system for.
+This API key will be available for 14 days since the day you last logged in. If an API key is
+already existed in the database, the same key will always be returned to you and shall be 
+renewed after the 14-day period mentioned previously.
+*/
 exports.userLogin = function (req, res) {
     if (
         req.body.username == undefined ||
@@ -307,6 +317,14 @@ exports.userLogin = function (req, res) {
     }
 };
 
+/*
+This is controller that is responsible for letting the user sign-out
+    The paths to the corresponding functions shall be listed below and all of the path requires HTTP
+POST method with the correct information
+This is used for the user when they want to log out and update the expired date of their API key
+	from the database, preventing any unauthorised access to the system. Just put the APIKEY into the
+	header of a POST request and send it to the server.
+*/
 exports.userLogout = function (req, res) {
     if (req.header('APIKEY') == undefined || req.header('APIKEY') == "") {
         res.status(400).json({ 'errorCode': 400, 'errorMessage': "Bad request made! Please insert the API key into the headers with Key is APIKEY and type is text/plain!" });
@@ -328,6 +346,29 @@ exports.userLogout = function (req, res) {
     }
 };
 
+
+/*
+This is controller that is responsible for letting the user sign up
+ The paths to the corresponding functions shall be listed below and all of the path requires HTTP
+POST method with the correct information
+This is used for the new users to sign up for an account
+	and have access to the system. 
+	You will have to POST to the path above the following details: (* as required, + for optional)
+    * username
+    * email
+    * password
+    + phoneNumber
+    * firstName
+    * lastName
+    + dateOfBirth
+    + address
+    + countryRegion
+    + city
+    + streetProvince
+    + zipCode
+    + gender
+    * userType: 1 for teacher, 2 for student, 0 for SuperUser (requiring AdminKey in the config), -1 for Admin (requiring AdminKey in the config)
+*/
 exports.userSignup = function (req, res) {
     if (
         req.body.username == undefined ||
@@ -341,7 +382,7 @@ exports.userSignup = function (req, res) {
         req.body.firstName == "" ||
         req.body.lastName == undefined ||
         req.body.lastName == "" ||
-        req.body.dateOfBirth == undefined ||
+        req.body.dateOfBirth == undefined || req.body.dateOfBirth == "" ||
         req.body.address == undefined ||
         req.body.countryRegion == undefined ||
         req.body.city == undefined ||
@@ -483,3 +524,178 @@ exports.userSignup = function (req, res) {
         });
     }
 };
+
+
+/* This is the controller that is in charge of getting the user information from the database by using the
+pre-existed API key. Just user a GET request with the API key in the header and let the server replied
+to you with a JSON string containing all of the information you need.
+The path to get the following is 
+    - /users/getUserDetails: just send a GET request with the API key in the header with the attribute APIKEY and the value being your key when logged in
+*/
+exports.getUserDetails = function (req, res) {
+    const APIKEY = req.header('APIKEY');
+    Keys.findOne({ key: APIKEY }).populate('userId').lean().then((success_callback) => {
+        if (success_callback != null || success_callback != undefined) {
+            var currentDate = new Date(Date.now());
+            var expiredDate = new Date(success_callback.expiredOn);
+            if ((currentDate.getTime()) >= (expiredDate.getTime())) {
+                res.status(401).json({ 'errorCode': 401, 'errorMessage': "Unauthorized access! API Key is outdated. Please login and try again!" });
+            } else {
+                delete (success_callback.userId.password); // remove password
+                delete (success_callback.userId.__v); // And versioning
+                res.status(200).json({ userDetails: success_callback.userId }); // return the result
+            }
+        } else {
+            res.status(401).json({ 'errorCode': 401, 'errorMessage': "Unauthorized access! API Key not found in the server, please login and try again!" });
+        }
+    });
+}
+
+
+/* This is the controller that is responsible for checking the details that the user sent to the system and
+see if they are valid to be used as updated details. There are 3 mode of operations for this specific path,
+you can specify the detailed action by adding a query called "mode" and add either "change_password" if you
+want to change the password or "deactivate" if you wish to deactivate the account (requiring an admin to
+reactivate your account later on). If you didn't put the query string into the path, normally, when you
+send the PUT request to the API link with the path "/user" attached with all of the "updatable" details
+such as: (* as required, + for optional)
+    * email
+    * password (Seperate mode)
+    + phoneNumber
+    * firstName
+    * lastName
+    + dateOfBirth
+    + address
+    + countryRegion
+    + city
+    + streetProvince
+    + zipCode
+    + gender
+    one specifically for changing accountStatus to -1 to set to deactivated
+*/
+exports.updateUserDetails = function (req, res) {
+    const APIKEY = req.header('APIKEY');
+    Keys.findOne({ key: APIKEY }).then((success_callback) => {
+        if (success_callback != null || success_callback != undefined) {
+            var currentDate = new Date(Date.now());
+            var expiredDate = new Date(success_callback.expiredOn);
+            if ((currentDate.getTime()) >= (expiredDate.getTime())) {
+                res.status(401).json({ 'errorCode': 401, 'errorMessage': "Unauthorized access! API Key is outdated. Please login and try again!" });
+            } else {
+                if (req.query.mode == null || req.query.mode == undefined) {
+                    if (
+                        req.body.email == undefined || req.body.email == "" ||
+                        req.body.phoneNumber == undefined ||
+                        req.body.firstName == undefined || req.body.firstName == "" ||
+                        req.body.lastName == undefined || req.body.lastName == "" ||
+                        req.body.dateOfBirth == undefined || req.body.dateOfBirth == "" ||
+                        req.body.address == undefined ||
+                        req.body.countryRegion == undefined ||
+                        req.body.city == undefined ||
+                        req.body.streetProvince == undefined ||
+                        req.body.zipCode == undefined ||
+                        req.body.gender == undefined) {
+                        res.json({ 'errorCode': 400, 'errorMessage': "Please fill in all of the updated details required!" });
+                    } else {
+                        var updatedDetails = {
+                            email: req.body.email,
+                            phoneNumber: req.body.phoneNumber,
+                            firstName: req.body.firstName,
+                            lastName: req.body.lastName,
+                            dateOfBirth: new Date(req.body.dateOfBirth),
+                            address: req.body.address,
+                            countryRegion: req.body.countryRegion,
+                            city: req.body.city,
+                            streetProvince: req.body.streetProvince,
+                            zipCode: req.body.zipCode,
+                            gender: req.body.gender
+                        };
+                        Users.updateOne({ _id: success_callback.userId }, updatedDetails, function (errorUpdatingUser, updatingResult) {
+                            if (errorUpdatingUser) {
+                                if (errorUpdatingUser.name == "CastError") {
+                                    res.status(500).json({ 'errorCode': 500, 'errorMessage': "Invalid User ID! Unauthorized API key detected1!" });
+                                } else {
+                                    res.status(500).json({ 'errorCode': 500, 'errorMessage': errorUpdatingUser });
+                                }
+                            } else {
+                                Users.updateOne({ _id: success_callback.userId }, { $push: { activities: { activityDescription: "Changed user's details" } } }, function (errorUpdatingUser, updatingResult) {
+                                    if (errorUpdatingUser) {
+                                        if (errorUpdatingUser.name == "CastError") {
+                                            res.status(500).json({ 'errorCode': 500, 'errorMessage': "Invalid user ID!" });
+                                        } else {
+                                            res.status(500).json({ 'errorCode': 500, 'errorMessage': errorUpdatingUser });
+                                        }
+                                    } else {
+                                        res.status(200).json({ 'result': "Successfully updated user's details!" });
+                                    }
+                                });
+                            }
+                        });
+                    }
+                } else {
+                    if (req.query.mode != "change_password" && req.query.mode != "deactivate") {
+                        res.status(500).json({ 'errorCode': 500, 'errorMessage': "Invalid update mode!" });
+                    } else {
+                        if (req.query.mode == "change_password") {
+                            if (req.body.password == null || req.body.password == undefined || req.body.password == "") {
+                                res.status(411).json({ 'errorCode': 411, 'errorMessage': "Invalid password!" });
+                            } else {
+                                Users.updateOne({ _id: success_callback.userId }, { password: cryptPassword(req.body.password) }, function (errorUpdatingUser, updatingResult) {
+                                    if (errorUpdatingUser) {
+                                        if (errorUpdatingUser.name == "CastError") {
+                                            res.status(500).json({ 'errorCode': 500, 'errorMessage': "Invalid User ID! Unauthorized API key detected2!" });
+                                        } else {
+                                            res.status(500).json({ 'errorCode': 500, 'errorMessage': errorUpdatingUser });
+                                        }
+                                    } else {
+                                        Users.updateOne({ _id: success_callback.userId }, { $push: { activities: { activityDescription: "Changed password" } } }, function (errorUpdatingUser, updatingResult) {
+                                            if (errorUpdatingUser) {
+                                                if (errorUpdatingUser.name == "CastError") {
+                                                    res.status(500).json({ 'errorCode': 500, 'errorMessage': "Invalid user ID!" });
+                                                } else {
+                                                    res.status(500).json({ 'errorCode': 500, 'errorMessage': errorUpdatingUser });
+                                                }
+                                            } else {
+                                                res.status(200).json({ 'result': "Successfully updated user's password" });
+                                            }
+                                        });
+                                    }
+                                });
+                            }
+                        } else {
+                            Users.updateOne({ _id: success_callback.userId }, { accountStatus: -1 }, function (errorUpdatingUser, updatingResult) {
+                                if (errorUpdatingUser) {
+                                    if (errorUpdatingUser.name == "CastError") {
+                                        res.status(500).json({ 'errorCode': 500, 'errorMessage': "Invalid User ID! Unauthorized API key detected!" });
+                                    } else {
+                                        res.status(500).json({ 'errorCode': 500, 'errorMessage': errorUpdatingUser });
+                                    }
+                                } else {
+                                    Users.updateOne({ _id: success_callback.userId }, { $push: { activities: { activityDescription: "Deactivate account" } } }, function (errorUpdatingUser, updatingResult) {
+                                        if (errorUpdatingUser) {
+                                            if (errorUpdatingUser.name == "CastError") {
+                                                res.status(500).json({ 'errorCode': 500, 'errorMessage': "Invalid user ID!" });
+                                            } else {
+                                                res.status(500).json({ 'errorCode': 500, 'errorMessage': errorUpdatingUser });
+                                            }
+                                        } else {
+                                            Keys.deleteMany({ userId: success_callback.userId }, function (errorDeletingKeys, deletingResult) {
+                                                if (errorDeletingKeys) {
+                                                    res.status(500).json({ 'errorCode': 500, 'errorMessage': errorDeletingKeys });
+                                                } else {
+                                                    res.status(200).json({ 'result': "Successfully deactivated account! Contact admin to reactivate your account if you wish to do so!" });
+                                                }
+                                            });
+                                        }
+                                    });
+                                }
+                            });
+                        }
+                    }
+                }
+            }
+        } else {
+            res.status(401).json({ 'errorCode': 401, 'errorMessage': "Unauthorized access! API Key not found in the server, please login and try again!" });
+        }
+    });
+}
