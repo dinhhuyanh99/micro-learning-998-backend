@@ -107,17 +107,17 @@ exports.userLogin = function (req, res) {
                                         if (doc.__t === "Teachers") {
                                             returnResult.userDetails.coursesTaught =
                                                 doc.coursesTaught;
-                                            returnResult.userDetails.flag = "t";
+                                            returnResult.userDetails.flag = doc.__t;
                                         } else if (doc.__t === "Students") {
                                             returnResult.userDetails.coursesLearnt =
                                                 doc.coursesLearnt;
-                                            returnResult.userDetails.flag = "s";
+                                            returnResult.userDetails.flag = doc.__t;
                                         } else if (doc.__t === "Admin") {
                                             console.log("Admin logged in at [" + new Date().toLocaleDateString() + "]. Admin username: [" + doc.username + "].");
-                                            returnResult.userDetails.flag = "a";
+                                            returnResult.userDetails.flag = doc.__t;
                                         } else if (doc.__t === "SuperUser") {
                                             console.log("SuperUser logged in at [" + new Date().toLocaleDateString() + "]. SuperUser username: [" + doc.username + "].");
-                                            returnResult.userDetails.flag = "su";
+                                            returnResult.userDetails.flag = doc.__t;
                                         }
                                         newKey
                                             .save()
@@ -193,17 +193,17 @@ exports.userLogin = function (req, res) {
                                                     if (doc.__t === "Teachers") {
                                                         returnResult.userDetails.coursesTaught =
                                                             doc.coursesTaught;
-                                                        returnResult.userDetails.flag = "t";
+                                                        returnResult.userDetails.flag = doc.__t;
                                                     } else if (doc.__t === "Students") {
                                                         returnResult.userDetails.coursesLearnt =
                                                             doc.coursesLearnt;
-                                                        returnResult.userDetails.flag = "s";
+                                                        returnResult.userDetails.flag = doc.__t;
                                                     } else if (doc.__t === "Admin") {
                                                         console.log("Admin logged in at [" + new Date().toLocaleDateString() + "]. Admin username: [" + doc.username + "].");
-                                                        returnResult.userDetails.flag = "a";
+                                                        returnResult.userDetails.flag = doc.__t;
                                                     } else if (doc.__t === "SuperUser") {
                                                         console.log("SuperUser logged in at [" + new Date().toLocaleDateString() + "]. SuperUser username: [" + doc.username + "].");
-                                                        returnResult.userDetails.flag = "su";
+                                                        returnResult.userDetails.flag = doc.__t;
                                                     }
                                                     newKey
                                                         .save()
@@ -276,17 +276,17 @@ exports.userLogin = function (req, res) {
                                                 if (doc.__t === "Teachers") {
                                                     returnResult.userDetails.coursesTaught =
                                                         doc.coursesTaught;
-                                                    returnResult.userDetails.flag = "t";
+                                                    returnResult.userDetails.flag = doc.__t;
                                                 } else if (doc.__t === "Students") {
                                                     returnResult.userDetails.coursesLearnt =
                                                         doc.coursesLearnt;
-                                                    returnResult.userDetails.flag = "s";
+                                                    returnResult.userDetails.flag = doc.__t;
                                                 } else if (doc.__t === "Admin") {
                                                     console.log("Admin logged in at [" + new Date().toLocaleDateString() + "]. Admin username: [" + doc.username + "].");
-                                                    returnResult.userDetails.flag = "a";
+                                                    returnResult.userDetails.flag = doc.__t;
                                                 } else if (doc.__t === "SuperUser") {
                                                     console.log("SuperUser logged in at [" + new Date().toLocaleDateString() + "]. SuperUser username: [" + doc.username + "].");
-                                                    returnResult.userDetails.flag = "su";
+                                                    returnResult.userDetails.flag = doc.__t;
                                                 }
                                                 res.status(200).json(returnResult);
                                                 break;
@@ -699,6 +699,10 @@ exports.updateUserDetails = function (req, res) {
         }
     });
 }
+
+/*
+TODO: Add getStudentDetails specifically for teachers to access students' details on the courses and other related details about the students (performance metrics and stuffs)
+*/
 
 /*
 This is the controller that is responsible for letting the admin or super user to get a list of users
