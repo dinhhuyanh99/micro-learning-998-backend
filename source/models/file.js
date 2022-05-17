@@ -9,8 +9,14 @@ var FileSchema = new Schema({
     },
     fileType: {
         type: String,
-        required: "Please give the file "
+        required: "Please give the file type in this part to indicate what type of file it is (should be the matching the extension type)"
+    },
+    originalUploader: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Users',
+        default: null
     }
+
 }, { timestamps: true });
 
-module.exports = mongoose.model('LearningNotes', LearningNotesSchema);
+module.exports = mongoose.model('Files', FileSchema);

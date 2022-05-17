@@ -699,3 +699,155 @@ exports.updateUserDetails = function (req, res) {
         }
     });
 }
+
+/*
+This is the controller that is responsible for letting the admin or super user to get a list of users
+or specific user's details
+send GET to /users/admin/getUsersDetails for all or
+send GET to /users/admin/getUsersDetails?user_id=<put _id value here> to get specific user
+*/
+exports.getUsersAdmin = function (req, res) {
+    const APIKEY = req.header('APIKEY');
+    Keys.findOne({ key: APIKEY }).populate('userId').then((success_callback) => {
+        if (success_callback != null || success_callback != undefined) {
+            var currentDate = new Date(Date.now());
+            var expiredDate = new Date(success_callback.expiredOn);
+            if ((currentDate.getTime()) >= (expiredDate.getTime())) {
+                res.status(401).json({ 'errorCode': 401, 'errorMessage': "Unauthorized access! API Key is outdated. Please login and try again!" });
+            } else {
+                if (success_callback.userId.__t != "Admin" && success_callback.userId.__t != "SuperUser") {
+                    res.status(401).json({ 'errorCode': 401, 'errorMessage': "Unauthorized access! This API Key is not from admin or superuser. Please try again!" });
+                } else {
+                    if (req._parsedUrl.query == null || req._parsedUrl.query == undefined) {
+                        Users.find({}).lean().exec(function (errorFindingUsers, usersList) {
+                            if (errorFindingUsers) {
+                                res.status(500).json({ 'errorCode': 500, 'errorMessage': errorFindingUsers });
+                            } else {
+                                if (usersList.length == 0) {
+                                    res.status(200).json({ 'results': "There are no users in the database at the moment!" });
+                                } else {
+                                    for (var i = 0; i < usersList.length; i++) {
+                                        if (usersList[i]._id.equals(success_callback.userId._id)){
+                                            usersList.splice(i, 1);
+                                        } else {
+                                            delete (usersList[i].password);
+                                            delete (usersList[i].__v);
+                                        }
+                                        
+                                    }
+                                    res.json({ 'length': usersList.length, 'results': usersList });
+                                }
+                            }
+                        });
+                    } else {
+                        if (req.query.user_id == undefined || req.query.user_id == null || req.query.user_id == "") {
+                            res.status(411).json({ 'errorCode': 411, 'errorMessage': "Missing user_id query string" });
+                        } else {
+                            Users.findOne({ _id: req.query.user_id }).lean().exec(function (errorFindingUser, userResult) {
+                                if (errorFindingUser) {
+                                    if (errorFindingUser.name == "CastError") {
+                                        res.status(500).json({ 'errorCode': 500, 'errorMessage': "Invalid user_id!" });
+                                    } else {
+                                        res.status(500).json({ 'errorCode': 500, 'errorMessage': errorFindingUser });
+                                    }
+                                } else {
+                                    if (userResult == undefined || userResult == null) {
+                                        res.status(200).json({ 'result': "There is no user with such ID!" });
+                                    } else {
+                                        delete (userResult.password);
+                                        delete (userResult.__v);
+                                        res.status(200).json({ 'result': userResult });
+                                    }
+                                }
+                            });
+                        }
+                    }
+                }
+            }
+        } else {
+            res.status(401).json({ 'errorCode': 401, 'errorMessage': "Unauthorized access! API Key not found in the server, please login and try again!" });
+        }
+    });
+}
+
+/*
+This controller will allow the admin/superuser to ban/unban user, reactivate the user essentially
+Sent a PUT request to /users/admin/updateUserStatusAdmin?user_id=<put the _id of the user here>&action=ban_user/unban_user/reactivate_user
+to do the corresponding things.
+*/
+
+exports.updateUserStatusAdmin = function (req, res) {
+    const APIKEY = req.header('APIKEY');
+    const ACTION = req.query.action;
+    Keys.findOne({ key: APIKEY }).populate('userId').then((success_callback) => {
+        if (success_callback != null || success_callback != undefined) {
+            var currentDate = new Date(Date.now());
+            var expiredDate = new Date(success_callback.expiredOn);
+            if ((currentDate.getTime()) >= (expiredDate.getTime())) {
+                res.status(401).json({ 'errorCode': 401, 'errorMessage': "Unauthorized access! API Key is outdated. Please login and try again!" });
+            } else {
+                if (success_callback.userId.__t != "Admin" && success_callback.userId.__t != "SuperUser") {
+                    res.status(401).json({ 'errorCode': 401, 'errorMessage': "Unauthorized access! This API Key is not from admin or superuser. Please try again!" });
+                } else {
+                    if (req._parsedUrl.query == null || req._parsedUrl.query == undefined) {
+                        res.status(411).json({ 'errorCode': 411, 'errorMessage': "Missing ?user_id=<put the _id of the user here>&action=ban_user/unban_user/reactivate_user" });
+                    } else {
+                        if (req.query.user_id == "" || req.query.user_id == null || req.query.user_id == undefined) {
+                            res.status(411).json({ 'errorCode': 411, 'errorMessage': "Missing user_id" });
+                        } else {
+                            Users.findOne({ _id: req.query.user_id }, function (errorFindingUser, userResult) {
+                                if (errorFindingUser) {
+                                    if (errorFindingUser.name == "CastError") {
+                                        res.status(500).json({ 'errorCode': 500, 'errorMessage': "Invalid user_id" });
+                                    } else {
+                                        res.status(500).json({ 'errorCode': 500, 'errorMessage': errorFindingUser });
+                                    }
+                                } else {
+                                    if (userResult == null || userResult == undefined) {
+                                        res.status(404).json({ 'errorCode': 404, 'errorMessage': "Cannot find a user with such ID!" });
+                                    } else {
+                                        if ((userResult._id).equals(success_callback.userId._id)) {
+                                            res.status(403).json({ 'errorCode': 403, 'errorMessage': "Action is forbidden on your own account!" });
+                                        } else {
+                                            if (ACTION == "ban_user") {
+                                                Users.updateOne({ _id: userResult._id }, { accountStatus: -2 }, function (errorUpdatingUser) {
+                                                    if (errorUpdatingUser) {
+                                                        res.status(500).json({ 'errorCode': 500, 'errorMessage': errorUpdatingUser });
+                                                    } else {
+                                                        res.status(200).json({ 'result': "Successfully banned user with ID " + userResult._id });
+                                                    }
+                                                });
+                                            } else if (ACTION == "unban_user" || ACTION == "reactivate_user") {
+                                                Users.updateOne({ _id: userResult._id }, { accountStatus: 1 }, function (errorUpdatingUser) {
+                                                    if (errorUpdatingUser) {
+                                                        res.status(500).json({ 'errorCode': 500, 'errorMessage': errorUpdatingUser });
+                                                    } else {
+                                                        res.status(200).json({ 'result': "Successfully unbanned/reactivated user with ID " + userResult._id });
+                                                    }
+                                                });
+                                            } else {
+                                                res.status(500).json({ 'errorCode': 500, 'errorMessage': "Invailid action query string, must be action=ban_user|unban_user|reactivate_user!" });
+                                            }
+                                        }
+                                    }
+                                }
+                            });
+                        }
+                    }
+                }
+            }
+        } else {
+            res.status(401).json({ 'errorCode': 401, 'errorMessage': "Unauthorized access! API Key not found in the server, please login and try again!" });
+        }
+    });
+}
+
+/*
+This controller is specifically built for Admin to delete user if requested
+DELETE to /users/admin/deleteUser?user_id=<put _id of user to delete here>
+This will delete all references to them in courses object (if there are more than 1 teacher, we will remove just one reference for the deleted teacher, we leave the rest there)
+(if they are the only one there, we will delete learning resource->learning objective->chapters-> courses, hence removing all courses referenced in students as well)
+
+We will also delete all the notes the user's made, all references to the API Keys and uploaded files (files that have been uploaded will be turned into anonymous upload)
+// To be implemented
+*/
