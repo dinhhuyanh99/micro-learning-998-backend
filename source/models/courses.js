@@ -66,6 +66,7 @@ var CourseSchema = new Schema({
 }, {timestamps: true});
 
 CourseSchema.pre('save', function (next, done) { // Before saving, calculate the end date of the course
+    var objectToSave = this;
     var expiredOnDate = new Date(this.startDate);
     if(this.durationInWeeks < 1 || this.durationInWeeks == undefined || this.durationInWeeks == null || this.durationInWeeks == NaN || this.durationInWeeks == ""){
         this.durationInWeeks = 1; // Smallest duration must be 1 week!
@@ -88,6 +89,26 @@ CourseSchema.pre('save', function (next, done) { // Before saving, calculate the
                         doc.__t != "SuperUser"){
                             next("The user that is assigned to this must be a teacher or of higher levels in the system")
                         }
+                    // If it's alright, we will update the coursesTaught list for the particular Teacher
+                    Users.updateOne({ _id: doc._id, __t: doc.__t }, { $push: { coursesTaught: objectToSave._id } }, { upsert: true, safe: true }, function (errorUpdatingUser, updatingResult) {
+                        if (errorUpdatingUser) {
+                            if (errorUpdatingUser.name == "CastError") {
+                                res
+                                    .status(500)
+                                    .json({
+                                        errorCode: 500,
+                                        errorMessage: "Invalid user ID!",
+                                    });
+                            } else {
+                                res
+                                    .status(500)
+                                    .json({
+                                        errorCode: 500,
+                                        errorMessage: errorUpdatingUser,
+                                    });
+                            }
+                        }
+                    });
                 }
             }
         });
@@ -107,6 +128,26 @@ CourseSchema.pre('save', function (next, done) { // Before saving, calculate the
                         doc.__t != "SuperUser") {
                         next("The user that is assigned to this must be a student or of higher levels in the system")
                     }
+                    // If it's alright, we will update the coursesTaught list for the particular Students
+                    Users.updateOne({ _id: doc._id, __t: doc.__t }, { $push: { coursesLearnt: objectToSave._id } }, { upsert: true, safe: true }, function (errorUpdatingUser, updatingResult) {
+                        if (errorUpdatingUser) {
+                            if (errorUpdatingUser.name == "CastError") {
+                                res
+                                    .status(500)
+                                    .json({
+                                        errorCode: 500,
+                                        errorMessage: "Invalid user ID!",
+                                    });
+                            } else {
+                                res
+                                    .status(500)
+                                    .json({
+                                        errorCode: 500,
+                                        errorMessage: errorUpdatingUser,
+                                    });
+                            }
+                        }
+                    });
                 }
             }
         });

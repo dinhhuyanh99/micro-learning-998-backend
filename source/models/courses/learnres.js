@@ -20,10 +20,6 @@ var LearningResourceSchema = new Schema({
         type: mongoose.Schema.Types.ObjectId,
         ref: 'LearningNotes'
     },
-    markedAsComplete: {
-        type: Boolean,
-        default: false
-    },
     belongToLearnObj: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'LearnObj'
@@ -141,4 +137,5 @@ var LearningResQuizSchema = LearningResourceSchema.discriminator('Quiz', new mon
     }
 
 }));
+
 module.exports = mongoose.model('LearningResource', LearningResourceSchema);
