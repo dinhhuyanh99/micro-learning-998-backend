@@ -33,6 +33,10 @@ var LearningResourceSchema = new Schema({
         type: mongoose.Schema.Types.ObjectId,
         ref: 'LearningResource',
         default: null
+    },
+    visible: {
+        type: Boolean,
+        default: true
     }
 }, { timestamps: true });
 

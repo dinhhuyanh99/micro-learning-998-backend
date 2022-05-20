@@ -282,6 +282,20 @@ exports.getCourseDetails = function (req, res) {
     });
 }
 
+/**
+ * This function is specifically for adding chapter to current existing course from the teacher/admin/superuser perspective
+ * the path is /courses/chapters/addChapter with POST request
+ * The body of the request will be as follows (* is required, + is optional)
+ * {
+    * "chapterName": 
+    * "belongToCourse": "6284ba94ae3178f2901ae5b5",
+    + "nextChapter": null, // Only use null if you don't want to link it with any chapter next
+    + "previousChapter": null // Only use null if you don't want to link it with any chapter previously
+}
+ * 
+ * @param {*} req 
+ * @param {*} res 
+ */
 exports.addChapter = function (req, res) {
     const APIKEY = req.header('APIKEY');
     Keys.findOne({ key: APIKEY }).populate('userId').lean().then((success_callback) => {
@@ -386,6 +400,95 @@ exports.addChapter = function (req, res) {
                     res.status(403).json({ 'errorCode': 401, 'errorMessage': "This action is unauthorized since you are a student!" });
                 }
 
+            }
+        } else {
+            res.status(401).json({ 'errorCode': 401, 'errorMessage': "Unauthorized access! API Key not found in the server, please login and try again!" });
+        }
+    });
+}
+
+exports.getAllChapters = function (req, res) { // Anyone who is logged in will be able to get all chapters for a single course.
+    const APIKEY = req.header('APIKEY');
+    Keys.findOne({ key: APIKEY }).populate('userId').lean().then((success_callback) => {
+        if (success_callback != null || success_callback != undefined) {
+            var currentDate = new Date(Date.now());
+            var expiredDate = new Date(success_callback.expiredOn);
+            if ((currentDate.getTime()) >= (expiredDate.getTime())) {
+                res.status(401).json({ 'errorCode': 401, 'errorMessage': "Unauthorized access! API Key is outdated. Please login and try again!" });
+            } else {
+                var filterCourses = {}
+                var uploaderDoc = success_callback.userId;
+                if (req._parsedUrl.query == null || req._parsedUrl.query == undefined) {
+                    // We will then check if the user is a teacher/admin/superuser and not a student
+                    if (uploaderDoc.__t === "Teachers" ||
+                        uploaderDoc.__t === "Admin" ||
+                        uploaderDoc.__t === "SuperUser") {
+                        filterCourses = { courseStatus: 1 };
+                    } else {
+                        filterCourses = { $or: [{ courseStatus: -1 }, { courseStatus: 0 }, { courseStatus: 1 }] };
+                    }
+                } else {
+                    // If there is a query
+                    // courseStatus query, only for teachers/admin/superuser
+                    var filtersArray = [];
+                    if (req.query.courseStatus != undefined && req.query.courseStatus != null && req.query.courseStatus != "") {
+                        if (uploaderDoc.__t === "Teachers" ||
+                            uploaderDoc.__t === "Admin" ||
+                            uploaderDoc.__t === "SuperUser") {
+                            if (req.query.courseStatus != -1 && req.query.courseStatus != 0 && req.query.courseStatus != 1) {
+                                res.status(411).json({ 'errorCode': 411, 'errorMessage': "courseStatus query string must be -1 (deactivated), 0 (pending), or 1(active)!" });
+                                return;
+                            } else {
+                                filtersArray.push({ courseStatus: req.query.courseStatus });
+                            }
+                        } else { // if it's a student, return error
+                            res.status(401).json({ 'errorCode': 401, 'errorMessage': "Students cannot query with courseStatus!" });
+                            return;
+                        }
+                    }
+
+                    // courseLevel query
+                    if (req.query.courseLevel != undefined && req.query.courseLevel != null && req.query.courseLevel != "") {
+                        var parsedCourseLevel = parseInt(req.query.courseLevel);
+                        if (parsedCourseLevel < 0 || parsedCourseLevel > 5) {
+                            res.status(411).json({ 'errorCode': 411, 'errorMessage': "courseLevel query string must be one number from 0 to 5!" });
+                            return;
+                        } else {
+                            filtersArray.push({ courseLevel: parsedCourseLevel });
+                        }
+                    }
+
+                    // durationInWeeks query
+                    if (req.query.durationInWeeks != undefined && req.query.durationInWeeks != null && req.query.durationInWeeks != "") {
+                        var parsedDuration = parseInt(req.query.durationInWeeks);
+                        if (parsedDuration < 1) { // Min is 1 week
+                            res.status(411).json({ 'errorCode': 411, 'errorMessage': "durationInWeeks query string must be greater than 1 week!" });
+                            return;
+                        } else {
+                            filtersArray.push({ durationInWeeks: parsedDuration });
+                        }
+                    }
+                    if (filtersArray.length > 0) {
+                        filterCourses = { $and: filtersArray };
+                    }
+                }
+                Courses.find(filterCourses).lean()
+                    .exec(function (errorFindingCourses, coursesList) {
+                        if (errorFindingCourses) {
+                            res.status(500).json({ 'errorCode': 500, 'errorMessage': errorFindingCourses });
+                        } else {
+                            if (coursesList.length == 0) {
+                                res.status(200).json({ 'results': "There are no courses in the database at the moment!" });
+                            } else {
+                                for (var i = 0; i < coursesList.length; i++) {
+                                    delete (coursesList[i].listOfTeachers); // Remove this because this part is only for displaying in dashboard or something...
+                                    delete (coursesList[i].listOfStudents); // Remove this because this part is only for displaying in dashboard or something...
+                                }
+
+                                res.status(200).json({ 'length': coursesList.length, 'results': coursesList });
+                            }
+                        }
+                    });
             }
         } else {
             res.status(401).json({ 'errorCode': 401, 'errorMessage': "Unauthorized access! API Key not found in the server, please login and try again!" });
