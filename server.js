@@ -18,6 +18,7 @@ var configParams = null;
 const mainApi = express();
 // Setup the port
 const envPort = process.env.MLS_PORT || 8080;
+const envHost = process.env.MLS_HOST || '127.0.0.1';
 
 function isEmpty(obj) {
     if(obj == undefined || obj == null){
@@ -73,6 +74,7 @@ mainApi.use('/', rootRouter);
 
 
 // Make the main API listen to either MLS_PORT in environment variable or default to 8080
-mainApi.listen(envPort);
+mainApi.listen(envPort, envHost, function(){
+    console.log('Currently listening all requests on PORT ' + envPort);
+});
 
-console.log('Currently listening all requests on PORT ' + envPort);
