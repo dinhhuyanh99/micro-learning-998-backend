@@ -13,7 +13,7 @@ coursesRouter.get('/details', coursesControllers.getCourseDetails);
 
 // For Chapters
 coursesRouter.post('/chapters/addChapter', coursesControllers.addChapter);
-// coursesRouter.get('/chapters/all', coursesControllers.getAllChapters);
+coursesRouter.get('/chapters/all', coursesControllers.getAllChapters);
 // coursesRouter.get('/chapters/getChapterDetails', coursesControllers.getChapterDetails);
 
 // For LearnObj

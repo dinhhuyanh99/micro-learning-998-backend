@@ -42,6 +42,7 @@ ChapterSchema.pre('save', function (next) { // Before saving, calculate the end 
             if (doc == null || doc == undefined) {
                 return next("This course doesn't exist in the system!");
             } else {
+                // Push the ID into Courses object
                 Courses.updateOne({ _id: objectToSave.belongToCourse }, { $push: { hasChapters: objectToSave._id } }, { upsert: true, safe: true }, function (errorUpdatingChapter, updatingResult) {
                     if (errorUpdatingChapter) {
                         if (errorUpdatingChapter.name == "CastError") {
@@ -62,6 +63,9 @@ ChapterSchema.pre('save', function (next) { // Before saving, calculate the end 
                     }
                     return next();
                 });
+                // Check the next and previous object id then update the next and previous accordingly
+                // There is one rule though, the first will have previous as null and next as the second ID, the last will have next as null and previous as the second id from bottom up
+                
             }
         }
         return next();
