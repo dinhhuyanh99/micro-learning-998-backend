@@ -6,7 +6,7 @@ const mongoose = require('mongoose'),
 var KeySchema = new Schema({
 	key: {
 		type: String,
-		default: generateKey()
+		default: generateKey
 	},
 	createdAt: {
 		type: Date,
