@@ -731,13 +731,8 @@ exports.getUsersAdmin = function (req, res) {
                                     res.status(200).json({ 'results': "There are no users in the database at the moment!" });
                                 } else {
                                     for (var i = 0; i < usersList.length; i++) {
-                                        if (usersList[i]._id.equals(success_callback.userId._id)){
-                                            usersList.splice(i, 1);
-                                        } else {
-                                            delete (usersList[i].password);
-                                            delete (usersList[i].__v);
-                                        }
-                                        
+                                        delete (usersList[i].password);
+                                        delete (usersList[i].__v);                                        
                                     }
                                     res.json({ 'length': usersList.length, 'results': usersList });
                                 }
