@@ -1,0 +1,7 @@
+{
+    "dbUsername": "microlearningdata",
+    "dbPassword": "zmsXMhF05nN26KBL",
+    "dbUrl": "microlearning998.oes0n.mongodb.net",
+    "defaultDatabase": "MicrolearningData",
+    "secretAdminKey": "33b39950df656a2eef04179a631f3a9365dd4100ec884c501e98411b0364627999403d9050c8611acadd9161bc3de3b800348bf609225d0fedaa8d780776ce79"
+}
