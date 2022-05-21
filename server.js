@@ -17,8 +17,8 @@ var configParams = null;
 // Get an instance of express running
 const mainApi = express();
 // Setup the port
-const envPort = process.env.MLS_PORT || 8080;
-const envHost = process.env.MLS_HOST || '127.0.0.1';
+const envPort = process.env.PORT || 8080;
+const envHost = process.env.HOST || '127.0.0.1';
 
 function isEmpty(obj) {
     if(obj == undefined || obj == null){
