@@ -76,5 +76,6 @@ mainApi.use('/', rootRouter);
 // Make the main API listen to either MLS_PORT in environment variable or default to 8080
 mainApi.listen(envPort, envHost, function(){
     console.log('Currently listening all requests on PORT ' + envPort);
+    console.log('Currently listening all requests on HOST ' + envHost);
 });
 
