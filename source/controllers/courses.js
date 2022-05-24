@@ -333,7 +333,7 @@ exports.addChapter = function (req, res) {
                                 } else {
                                     // If the course exists, we can then proceed to check the nextChapter and previousChapter references
                                     // Next chapter
-                                    if (req.body.nextChapter != null) {
+                                    if (req.body.nextChapter != null) { //  Check if next chapter is available
                                         Chapters.findOne({ _id: req.body.nextChapter }, function (errorFindingNextChapter, nextChapterObj) {
                                             if (errorFindingNextChapter) {
                                                 if (errorFindingNextChapter.name == "CastError") {
@@ -347,50 +347,133 @@ exports.addChapter = function (req, res) {
                                                 if (nextChapterObj == null || nextChapterObj == undefined) {
                                                     res.status(400).json({ 'errorCode': 400, 'errorMessage': "Invalid Chapter ID! Please give a valid next chapter ID to bind this chapter with!" });
                                                     return;
+                                                } else { // If the nextChapter exists, we will continue checking previousChapter
+                                                    // Previous Chapter
+                                                    if (req.body.previousChapter != null) {
+                                                        Chapters.findOne({ _id: req.body.previousChapter }, function (errorFindingPreviousChapter, previousChapterObj) {
+                                                            if (errorFindingPreviousChapter) {
+                                                                if (errorFindingPreviousChapter.name == "CastError") {
+                                                                    res.status(400).json({ 'errorCode': 400, 'errorMessage': "Invalid Chapter ID! Please give a valid previous chapter ID to bind this chapter with!" });
+                                                                    return;
+                                                                } else {
+                                                                    res.status(500).json({ 'errorCode': 500, 'errorMessage': errorFindingPreviousChapter });
+                                                                    return;
+                                                                }
+                                                            } else {
+                                                                if (previousChapterObj == null || previousChapterObj == undefined) {
+                                                                    res.status(400).json({ 'errorCode': 400, 'errorMessage': "Invalid Chapter ID! Please give a valid previous chapter ID to bind this chapter with!" });
+                                                                    return;
+                                                                } else { // If both exists, and are not null, we will save
+                                                                    // If everything is ok, create the new object then save it
+                                                                    // If the user has all fields required filled with data
+                                                                    var newChapter = new Chapters({
+                                                                        chapterName: req.body.chapterName,
+                                                                        belongToCourse: req.body.belongToCourse,
+                                                                        nextChapter: req.body.nextChapter,
+                                                                        previousChapter: req.body.previousChapter
+                                                                    });
+                                                                    newChapter
+                                                                        .save()
+                                                                        .then((saved) => {
+                                                                            res.status(200).json({
+                                                                                result:
+                                                                                    "Successfully created a chapter for the course [" + courseObject._id + "] " + courseObject.courseName + " !",
+                                                                            });
+                                                                        })
+                                                                        .catch((saving_err) => {
+                                                                            res.status(500).json({ errorCode: 500, errorMessage: saving_err });
+                                                                        });
+                                                                }
+                                                            }
+
+                                                        });
+                                                    } else {
+                                                        // If everything is ok, create the new object then save it
+                                                        // If the user has all fields required filled with data
+                                                        var newChapter = new Chapters({
+                                                            chapterName: req.body.chapterName,
+                                                            belongToCourse: req.body.belongToCourse,
+                                                            nextChapter: req.body.nextChapter,
+                                                            previousChapter: req.body.previousChapter
+                                                        });
+                                                        newChapter
+                                                            .save()
+                                                            .then((saved) => {
+                                                                res.status(200).json({
+                                                                    result:
+                                                                        "Successfully created a chapter for the course [" + courseObject._id + "] " + courseObject.courseName + " !",
+                                                                });
+                                                            })
+                                                            .catch((saving_err) => {
+                                                                res.status(500).json({ errorCode: 500, errorMessage: saving_err });
+                                                            });
+                                                    }
                                                 }
                                             }
 
                                         });
-                                    }
-                                    // Previous Chapter
-                                    if (req.body.previousChapter != null) {
-                                        Chapters.findOne({ _id: req.body.previousChapter }, function (errorFindingPreviousChapter, previousChapterObj) {
-                                            if (errorFindingPreviousChapter) {
-                                                if (errorFindingPreviousChapter.name == "CastError") {
-                                                    res.status(400).json({ 'errorCode': 400, 'errorMessage': "Invalid Chapter ID! Please give a valid previous chapter ID to bind this chapter with!" });
-                                                    return;
+                                    } else { // If the nextChapter is null, we check for previous chapter
+                                        // Previous Chapter
+                                        if (req.body.previousChapter != null) {
+                                            Chapters.findOne({ _id: req.body.previousChapter }, function (errorFindingPreviousChapter, previousChapterObj) {
+                                                if (errorFindingPreviousChapter) {
+                                                    if (errorFindingPreviousChapter.name == "CastError") {
+                                                        res.status(400).json({ 'errorCode': 400, 'errorMessage': "Invalid Chapter ID! Please give a valid previous chapter ID to bind this chapter with!" });
+                                                        return;
+                                                    } else {
+                                                        res.status(500).json({ 'errorCode': 500, 'errorMessage': errorFindingPreviousChapter });
+                                                        return;
+                                                    }
                                                 } else {
-                                                    res.status(500).json({ 'errorCode': 500, 'errorMessage': errorFindingPreviousChapter });
-                                                    return;
+                                                    if (previousChapterObj == null || previousChapterObj == undefined) {
+                                                        res.status(400).json({ 'errorCode': 400, 'errorMessage': "Invalid Chapter ID! Please give a valid previous chapter ID to bind this chapter with!" });
+                                                        return;
+                                                    } else { // If both exists, and are not null, we will save
+                                                        // If everything is ok, create the new object then save it
+                                                        // If the user has all fields required filled with data
+                                                        var newChapter = new Chapters({
+                                                            chapterName: req.body.chapterName,
+                                                            belongToCourse: req.body.belongToCourse,
+                                                            nextChapter: req.body.nextChapter,
+                                                            previousChapter: req.body.previousChapter
+                                                        });
+                                                        newChapter
+                                                            .save()
+                                                            .then((saved) => {
+                                                                res.status(200).json({
+                                                                    result:
+                                                                        "Successfully created a chapter for the course [" + courseObject._id + "] " + courseObject.courseName + " !",
+                                                                });
+                                                            })
+                                                            .catch((saving_err) => {
+                                                                res.status(500).json({ errorCode: 500, errorMessage: saving_err });
+                                                            });
+                                                    }
                                                 }
-                                            } else {
-                                                if (previousChapterObj == null || previousChapterObj == undefined) {
-                                                    res.status(400).json({ 'errorCode': 400, 'errorMessage': "Invalid Chapter ID! Please give a valid previous chapter ID to bind this chapter with!" });
-                                                    return;
-                                                }
-                                            }
 
-                                        });
-                                    }
-                                    // If everything is ok, create the new object then save it
-                                    // If the user has all fields required filled with data
-                                    var newChapter = new Chapters({
-                                        chapterName: req.body.chapterName,
-                                        belongToCourse: req.body.belongToCourse,
-                                        nextChapter: req.body.nextChapter,
-                                        previousChapter: req.body.previousChapter
-                                    });
-                                    newChapter
-                                        .save()
-                                        .then((saved) => {
-                                            res.status(200).json({
-                                                result:
-                                                    "Successfully created a chapter for the course [" + courseObject._id + "] " + courseObject.courseName + " !",
                                             });
-                                        })
-                                        .catch((saving_err) => {
-                                            res.status(500).json({ errorCode: 500, errorMessage: saving_err });
-                                        });
+                                        } else {
+                                            // If everything is ok, create the new object then save it
+                                            // If the user has all fields required filled with data
+                                            var newChapter = new Chapters({
+                                                chapterName: req.body.chapterName,
+                                                belongToCourse: req.body.belongToCourse,
+                                                nextChapter: req.body.nextChapter,
+                                                previousChapter: req.body.previousChapter
+                                            });
+                                            newChapter
+                                                .save()
+                                                .then((saved) => {
+                                                    res.status(200).json({
+                                                        result:
+                                                            "Successfully created a chapter for the course [" + courseObject._id + "] " + courseObject.courseName + " !",
+                                                    });
+                                                })
+                                                .catch((saving_err) => {
+                                                    res.status(500).json({ errorCode: 500, errorMessage: saving_err });
+                                                });
+                                        }
+                                    }
                                 }
                             }
 
@@ -408,6 +491,15 @@ exports.addChapter = function (req, res) {
     });
 }
 
+/**
+ * This function is specifically for getting all chapters of a current course
+ * the path is /courses/chapters/all with GET request with courseId in the query part of the url
+ * like /courses/chapters/all?courseId=<course id>
+ * 
+ * 
+ * @param {*} req 
+ * @param {*} res 
+ */
 exports.getAllChapters = function (req, res) { // Anyone who is logged in will be able to get all chapters for a single course.
     const APIKEY = req.header('APIKEY');
     Keys.findOne({ key: APIKEY }).populate('userId').lean().then((success_callback) => {

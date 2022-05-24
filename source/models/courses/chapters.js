@@ -35,7 +35,6 @@ var ChapterSchema = new Schema({
 ChapterSchema.pre('save', function (next) { // Before saving, calculate the end date of the course
     var objectToSave = this;
     Courses.findOne({ _id: objectToSave.belongToCourse }, function (err, doc) {
-        console.log(doc);
         if (err) {
             return next(err);
         } else {
@@ -50,7 +49,7 @@ ChapterSchema.pre('save', function (next) { // Before saving, calculate the end 
                                 .status(500)
                                 .json({
                                     errorCode: 500,
-                                    errorMessage: "Invalid user ID!",
+                                    errorMessage: "Invalid course ID!",
                                 });
                         } else {
                             res
@@ -60,15 +59,59 @@ ChapterSchema.pre('save', function (next) { // Before saving, calculate the end 
                                     errorMessage: errorUpdatingChapter,
                                 });
                         }
+                    } else { // If we already update this, we will update the nextChapter and previousChapter reference to the other found chapters
+                        if(objectToSave.nextChapter != null){
+                            mongoose.model('Chapters', ChapterSchema).updateOne({_id: objectToSave.nextChapter}, { previousChapter: objectToSave._id }, { upsert: true, safe: true}, function (errorUpdatingPreviousChap, updateResultPrev){
+                                if (errorUpdatingPreviousChap) {
+                                    if (errorUpdatingPreviousChap.name == "CastError") {
+                                        res
+                                            .status(500)
+                                            .json({
+                                                errorCode: 500,
+                                                errorMessage: "Invalid next ID!",
+                                            });
+                                    } else {
+                                        res
+                                            .status(500)
+                                            .json({
+                                                errorCode: 500,
+                                                errorMessage: errorUpdatingPreviousChap,
+                                            });
+                                    }
+                                }
+                            });
+                        }
+                        if (objectToSave.previousChapter != null) {
+                            mongoose.model('Chapters', ChapterSchema).updateOne({ _id: objectToSave.previousChapter }, { nextChapter: objectToSave._id }, { upsert: true, safe: true }, function (errorUpdatingNextChap, updateResultNext) {
+                                if (errorUpdatingNextChap) {
+                                    if (errorUpdatingNextChap.name == "CastError") {
+                                        res
+                                            .status(500)
+                                            .json({
+                                                errorCode: 500,
+                                                errorMessage: "Invalid previous ID!",
+                                            });
+                                    } else {
+                                        res
+                                            .status(500)
+                                            .json({
+                                                errorCode: 500,
+                                                errorMessage: errorUpdatingNextChap,
+                                            });
+                                    }
+                                }
+                            });
+                        }
+
                     }
                     return next();
                 });
-                // Check the next and previous object id then update the next and previous accordingly
-                // There is one rule though, the first will have previous as null and next as the second ID, the last will have next as null and previous as the second id from bottom up
-                
             }
         }
-        return next();
     });
 });
+
+
+
+// This will happen after saving, basically we will match the ID of the Chapter 
 module.exports = mongoose.model('Chapters', ChapterSchema);
