@@ -98,6 +98,11 @@ exports.addCourse = function(req, res){
  * send a GET request to /courses/all
  * for teachers/admin/superuser, they can retrieve all courses regardless of the status
  * for students, they can only retrieve active courses
+ * /courses/all?courseStatus=[-1,0,1]&courseLevel=[0,1,2,3,4,5]&durationInWeeks=[1,...]&withChapters=true
+ * 
+ * 
+ * another check is that if the user want to retrieve the chapters details as well, you have to pass in
+ * 
  * @param {*} req 
  * @param {*} res 
  */
@@ -166,23 +171,45 @@ exports.getAllCourses = function(req, res){
                         filterCourses = { $and: filtersArray };
                     }
                 }
-                Courses.find(filterCourses).lean()
-                    .exec(function (errorFindingCourses, coursesList) {
-                        if (errorFindingCourses) {
-                            res.status(500).json({ 'errorCode': 500, 'errorMessage': errorFindingCourses });
-                        } else {
-                            if (coursesList.length == 0) {
-                                res.status(200).json({ 'results': "There are no courses in the database at the moment!" });
+                if (req.query.withChapters == "true"){
+                    Courses.find(filterCourses).lean()
+                        .populate("hasChapters")
+                        .exec(function (errorFindingCourses, coursesList) {
+                            if (errorFindingCourses) {
+                                res.status(500).json({ 'errorCode': 500, 'errorMessage': errorFindingCourses });
                             } else {
-                                for(var i = 0; i < coursesList.length; i ++){
-                                    delete (coursesList[i].listOfTeachers); // Remove this because this part is only for displaying in dashboard or something...
-                                    delete (coursesList[i].listOfStudents); // Remove this because this part is only for displaying in dashboard or something...
-                                }
+                                if (coursesList.length == 0) {
+                                    res.status(200).json({ 'results': "There are no courses in the database at the moment!" });
+                                } else {
+                                    for (var i = 0; i < coursesList.length; i++) {
+                                        delete (coursesList[i].listOfTeachers); // Remove this because this part is only for displaying in dashboard or something...
+                                        delete (coursesList[i].listOfStudents); // Remove this because this part is only for displaying in dashboard or something...
+                                    }
 
-                                res.status(200).json({ 'length': coursesList.length, 'results': coursesList });
+                                    res.status(200).json({ 'length': coursesList.length, 'results': coursesList });
+                                }
                             }
-                        }
-                    });
+                        });
+                } else {
+                    Courses.find(filterCourses).lean()
+                        .exec(function (errorFindingCourses, coursesList) {
+                            if (errorFindingCourses) {
+                                res.status(500).json({ 'errorCode': 500, 'errorMessage': errorFindingCourses });
+                            } else {
+                                if (coursesList.length == 0) {
+                                    res.status(200).json({ 'results': "There are no courses in the database at the moment!" });
+                                } else {
+                                    for (var i = 0; i < coursesList.length; i++) {
+                                        delete (coursesList[i].listOfTeachers); // Remove this because this part is only for displaying in dashboard or something...
+                                        delete (coursesList[i].listOfStudents); // Remove this because this part is only for displaying in dashboard or something...
+                                    }
+
+                                    res.status(200).json({ 'length': coursesList.length, 'results': coursesList });
+                                }
+                            }
+                        });
+                }
+                
             }
         } else {
             res.status(401).json({ 'errorCode': 401, 'errorMessage': "Unauthorized access! API Key not found in the server, please login and try again!" });
@@ -190,11 +217,11 @@ exports.getAllCourses = function(req, res){
     });
 }
 
-
 /**
  * This function will be in charge of returning the list of one course based on the id that the
  * user passed into the url in the form of 
- * sending a GET request to /courses/details?
+ * sending a GET request to /courses/details?courseId=<insert course Id>
+ * 
  * @param {*} req 
  * @param {*} res 
  */
@@ -496,7 +523,7 @@ exports.addChapter = function (req, res) {
  * the path is /courses/chapters/all with GET request with courseId in the query part of the url
  * like /courses/chapters/all?courseId=<course id>
  * 
- * 
+ *
  * @param {*} req 
  * @param {*} res 
  */
