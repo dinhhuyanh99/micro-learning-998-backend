@@ -1,7 +1,6 @@
 'use strict';
+
 const mongoose = require('mongoose'),
-    learnObj = require('./learnobj'),
-    CourseSchema = require('../courses'),
     Courses = mongoose.model("Courses"),
     Schema = mongoose.Schema;
 
@@ -111,7 +110,4 @@ ChapterSchema.pre('save', function (next) { // Before saving, calculate the end 
     });
 });
 
-
-
-// This will happen after saving, basically we will match the ID of the Chapter 
 module.exports = mongoose.model('Chapters', ChapterSchema);

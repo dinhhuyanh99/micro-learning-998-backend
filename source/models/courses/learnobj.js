@@ -1,5 +1,7 @@
 'use strict';
+
 const mongoose = require('mongoose'),
+    Chapters = mongoose.model("Chapters"),
     Schema = mongoose.Schema;
 
 var LearnObjSchema = new Schema({
@@ -40,5 +42,40 @@ var LearnObjSchema = new Schema({
         default: []
     }
 }, { timestamps: true });
+
+LearnObjSchema.pre('save', function(next){
+    var objectToSave = this;
+    Chapters.findOne({ _id: objectToSave.belongToChapter }, function (err, doc) {
+        if (err) {
+            return next(err);
+        } else {
+            if (doc == null || doc == undefined) {
+                return next("This chapter doesn't exist in the system!");
+            } else {
+                // Push the ID into Chapters object
+                Chapters.updateOne({ _id: objectToSave.belongToChapter }, { $push: { learningObjects: objectToSave._id } }, { upsert: true, safe: true }, function (errorUpdatingChapter, updatingResult) {
+                    if (errorUpdatingChapter) {
+                        if (errorUpdatingChapter.name == "CastError") {
+                            res
+                                .status(500)
+                                .json({
+                                    errorCode: 500,
+                                    errorMessage: "Invalid chapters ID!",
+                                });
+                        } else {
+                            res
+                                .status(500)
+                                .json({
+                                    errorCode: 500,
+                                    errorMessage: errorUpdatingChapter,
+                                });
+                        }
+                    }
+                    return next();
+                });
+            }
+        }
+    });
+});
 
 module.exports = mongoose.model('LearnObj', LearnObjSchema);

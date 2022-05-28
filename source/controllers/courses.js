@@ -5,6 +5,8 @@ const mongoose = require("mongoose"),
     Courses = mongoose.model("Courses"),
     ChapterSchema = require("../models/courses/chapters"),
     Chapters = mongoose.model("Chapters"),
+    LearnObjSchema = require("../models/courses/learnobj"),
+    LearnObj = mongoose.model("LearnObj"),
     { TeacherSchema } = require("../models/users/teachers"),
     { StudentSchema } = require("../models/users/students"),
     { AdminSchema } = require("../models/users/admin"),
@@ -79,7 +81,7 @@ exports.addCourse = function(req, res){
                             })
                             .catch((saving_err) =>{
                                 console.log(saving_err);
-                                res.status(500).json({ errorCode: 500, errorMessage: saving_err });
+                                res.status(500).json({ errorCode: 500, errorMessage: saving_err.toString() });
                             });
                     }
                 } else {
@@ -408,7 +410,7 @@ exports.addChapter = function (req, res) {
                                                                             });
                                                                         })
                                                                         .catch((saving_err) => {
-                                                                            res.status(500).json({ errorCode: 500, errorMessage: saving_err });
+                                                                            res.status(500).json({ errorCode: 500, errorMessage: saving_err.toString() });
                                                                         });
                                                                 }
                                                             }
@@ -432,7 +434,7 @@ exports.addChapter = function (req, res) {
                                                                 });
                                                             })
                                                             .catch((saving_err) => {
-                                                                res.status(500).json({ errorCode: 500, errorMessage: saving_err });
+                                                                res.status(500).json({ errorCode: 500, errorMessage: saving_err.toString() });
                                                             });
                                                     }
                                                 }
@@ -473,7 +475,8 @@ exports.addChapter = function (req, res) {
                                                                 });
                                                             })
                                                             .catch((saving_err) => {
-                                                                res.status(500).json({ errorCode: 500, errorMessage: saving_err });
+                                                                console.log(saving_err);
+                                                                res.status(500).json({ errorCode: 500, errorMessage: saving_err.toString() });
                                                             });
                                                     }
                                                 }
@@ -497,7 +500,7 @@ exports.addChapter = function (req, res) {
                                                     });
                                                 })
                                                 .catch((saving_err) => {
-                                                    res.status(500).json({ errorCode: 500, errorMessage: saving_err });
+                                                    res.status(500).json({ errorCode: 500, errorMessage: saving_err.toString() });
                                                 });
                                         }
                                     }
@@ -558,6 +561,44 @@ exports.getAllChapters = function (req, res) { // Anyone who is logged in will b
                             });   
                     }
                 }
+            }
+        } else {
+            res.status(401).json({ 'errorCode': 401, 'errorMessage': "Unauthorized access! API Key not found in the server, please login and try again!" });
+        }
+    });
+}
+
+/**
+ * 
+ */
+exports.addLearnObj = function (req, res){
+    const APIKEY = req.header('APIKEY');
+    Keys.findOne({ key: APIKEY }).populate('userId').lean().then((success_callback) => {
+        if (success_callback != null || success_callback != undefined) {
+            var currentDate = new Date(Date.now());
+            var expiredDate = new Date(success_callback.expiredOn);
+            if ((currentDate.getTime()) >= (expiredDate.getTime())) {
+                res.status(401).json({ 'errorCode': 401, 'errorMessage': "Unauthorized access! API Key is outdated. Please login and try again!" });
+            } else {
+                var newLearningObj = new LearnObj({
+                    title: req.body.title,
+                    belongToChapter: req.body.belongToChapter,
+                    description: req.body.description,
+                    previousLearnObj: req.body.previousLearnObj,
+                    nextLearnObj: req.body.nextLearnObj,
+                    hasLearningResource: req.body.hasLearningResource,
+                    hasParentLearnObj: req.body.hasParentLearnObj,
+                    hasChildrenLearnObj: req.body.hasChildrenLearnObj
+                });
+                newLearningObj.save().then((saved) => {
+                    res.status(200).json({
+                        result:
+                            "Successfully added a learning object for the chapter !",
+                    });
+                })
+                    .catch((saving_err) => {
+                        res.status(500).json({ errorCode: 500, errorMessage: saving_err.toString() });
+                    });
             }
         } else {
             res.status(401).json({ 'errorCode': 401, 'errorMessage': "Unauthorized access! API Key not found in the server, please login and try again!" });

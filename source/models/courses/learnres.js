@@ -13,7 +13,7 @@ var LearningResourceSchema = new Schema({
     },
     resourceType: {
         type: String,
-        enum: ["Video", "Reading", "Quiz", "File"],
+        enum: ["Video", "Reading", "Quiz"],
         required: "Please give the type of the "
     },
     hasNotes: {
@@ -37,6 +37,14 @@ var LearningResourceSchema = new Schema({
     visible: {
         type: Boolean,
         default: true
+    },
+    containFiles: {
+        type:[{
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'Files',
+            default: null
+        }],
+        default: []
     }
 }, { timestamps: true });
 
