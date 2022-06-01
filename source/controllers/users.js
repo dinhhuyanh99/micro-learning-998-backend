@@ -296,11 +296,38 @@ exports.userLogin = function (req, res) {
                                 }
                             });
                         } else {
-                            res.status(500).json({
-                                errorCode: 500,
-                                errorMessage:
-                                    "Sorry but it seems like the password provided is wrong!",
-                            });
+                            Users.updateOne({ _id: updatingResult.userId },
+                                {
+                                    $push: {
+                                        userActivities: { activityDescription: "Failed login attempt (Wrong Password)." },
+                                    },
+                                },
+                                function (errorUpdatingUser) {
+                                    if (errorUpdatingUser) {
+                                        if (errorUpdatingUser.name == "CastError") {
+                                            res
+                                                .status(500)
+                                                .json({
+                                                    errorCode: 500,
+                                                    errorMessage: "Invalid user ID!",
+                                                });
+                                        } else {
+                                            res
+                                                .status(500)
+                                                .json({
+                                                    errorCode: 500,
+                                                    errorMessage: errorUpdatingUser,
+                                                });
+                                        }
+                                    } else {
+                                        res.status(500).json({
+                                            errorCode: 500,
+                                            errorMessage:
+                                                "Sorry but it seems like the password provided is wrong!",
+                                        });
+                                    }
+                                });
+                            
                         }
                     } else {
                         res
@@ -330,7 +357,7 @@ exports.userLogout = function (req, res) {
         res.status(400).json({ 'errorCode': 400, 'errorMessage': "Bad request made! Please insert the API key into the headers with Key is APIKEY and type is text/plain!" });
     } else {
 
-        Keys.updateOne({ key: req.header('APIKEY') }, { expiredOn: new Date() },
+        Keys.findOneAndUpdate({ key: req.header('APIKEY') }, { expiredOn: new Date() },
             function (errorUpdatingKey, updatingResult) {
                 if (errorUpdatingKey) {
                     res
@@ -340,10 +367,39 @@ exports.userLogout = function (req, res) {
                             errorMessage: errorUpdatingKey,
                         });
                 } else {
-                    res.status(200).json({ 'result': 'Successfully sign out!' });
+                    // AFter setting the expiration date to the day they logged out from the system, we will add this activities to the backend
+                    Users.updateOne({ _id: updatingResult.userId },
+                        {
+                            $push: {
+                                userActivities: { activityDescription: "User logged out from system!" },
+                            },
+                        },
+                        function (errorUpdatingUser) {
+                            if (errorUpdatingUser) {
+                                if (errorUpdatingUser.name == "CastError") {
+                                    res
+                                        .status(500)
+                                        .json({
+                                            errorCode: 500,
+                                            errorMessage: "Invalid user ID!",
+                                        });
+                                } else {
+                                    res
+                                        .status(500)
+                                        .json({
+                                            errorCode: 500,
+                                            errorMessage: errorUpdatingUser,
+                                        });
+                                }
+                            } else {
+                                // If there is no error adding the activity into the list, we will return the successfully logged out message to the response;
+                                res.status(200).json({ 'result': 'Successfully sign out!' });
+                            }
+                        });
                 }
             });
     }
+    return;
 };
 
 
@@ -809,15 +865,16 @@ exports.updateUserStatusAdmin = function (req, res) {
                                             res.status(403).json({ 'errorCode': 403, 'errorMessage': "Action is forbidden on your own account!" });
                                         } else {
                                             if (ACTION == "ban_user") {
-                                                Users.updateOne({ _id: userResult._id }, { accountStatus: -2 }, function (errorUpdatingUser) {
+                                                Users.updateOne({ _id: userResult._id }, { accountStatus: -2, $push: { activities: { activityDescription: "Account has been banned by Admin!" } }}, function (errorUpdatingUser) {
                                                     if (errorUpdatingUser) {
                                                         res.status(500).json({ 'errorCode': 500, 'errorMessage': errorUpdatingUser });
                                                     } else {
+                                                        
                                                         res.status(200).json({ 'result': "Successfully banned user with ID " + userResult._id });
                                                     }
                                                 });
                                             } else if (ACTION == "unban_user" || ACTION == "reactivate_user") {
-                                                Users.updateOne({ _id: userResult._id }, { accountStatus: 1 }, function (errorUpdatingUser) {
+                                                Users.updateOne({ _id: userResult._id }, { accountStatus: 1, $push: { activities: { activityDescription: "Account is reactivated by Admin" } }}, function (errorUpdatingUser) {
                                                     if (errorUpdatingUser) {
                                                         res.status(500).json({ 'errorCode': 500, 'errorMessage': errorUpdatingUser });
                                                     } else {
