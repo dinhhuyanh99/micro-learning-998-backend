@@ -11,39 +11,16 @@ var LearningResourceSchema = new Schema({
         type: String,
         required: "Please give a brief description of the learning objective!"
     },
-    resourceType: {
-        type: String,
-        enum: ["Video", "Reading", "Quiz"],
-        required: "Please give the type of the "
-    },
-    hasNotes: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'LearningNotes'
-    },
     belongToLearnObj: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'LearnObj'
-    },
-    previousLearnRes: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'LearningResource',
-        default: null
-    },
-    nextLearnRes: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'LearningResource',
-        default: null
     },
     visible: {
         type: Boolean,
         default: true
     },
     containFiles: {
-        type:[{
-            type: mongoose.Schema.Types.ObjectId,
-            ref: 'Files',
-            default: null
-        }],
+        type:[{type: mongoose.Schema.Types.ObjectId, ref: 'Files'}],
         default: []
     }
 }, { timestamps: true });

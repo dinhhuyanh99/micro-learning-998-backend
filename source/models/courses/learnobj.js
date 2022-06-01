@@ -18,16 +18,6 @@ var LearnObjSchema = new Schema({
         type: String,
         required: "Please give a brief description of the learning objective!"
     },
-    previousLearnObj: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'LearnObj',
-        default: null
-    },
-    nextLearnObj: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'LearnObj',
-        default: null
-    },
     hasLearningResource: {
         type: [{ type: mongoose.Schema.Types.ObjectId, ref: 'LearningResource' }],
         default: []
