@@ -23,36 +23,42 @@ var ChapterSchema = new Schema({
 
 ChapterSchema.pre('save', function (next) { // Before saving, calculate the end date of the course
     var objectToSave = this;
-    Courses.findOne({ _id: objectToSave.belongToCourse }, function (err, doc) {
-        if (err) {
-            return next(err);
-        } else {
-            if (doc == null || doc == undefined) {
-                return next("This course doesn't exist in the system!");
+    if(objectToSave.belongToCourse != null){
+        Courses.findOne({ _id: objectToSave.belongToCourse }, function (err, doc) {
+            if (err) {
+                return next(err);
             } else {
-                // Push the ID into Courses object
-                Courses.updateOne({ _id: objectToSave.belongToCourse }, { $push: { hasChapters: objectToSave._id } }, { upsert: true, safe: true }, function (errorUpdatingChapter) {
-                    if (errorUpdatingChapter) {
-                        if (errorUpdatingChapter.name == "CastError") {
-                            res
-                                .status(500)
-                                .json({
-                                    errorCode: 500,
-                                    errorMessage: "Invalid course ID!",
-                                });
-                        } else {
-                            res
-                                .status(500)
-                                .json({
-                                    errorCode: 500,
-                                    errorMessage: errorUpdatingChapter,
-                                });
+                if (doc == null || doc == undefined) {
+                    return next("This course doesn't exist in the system!");
+                } else {
+                    // Push the ID into Courses object
+                    Courses.updateOne({ _id: objectToSave.belongToCourse }, { $push: { hasChapters: objectToSave._id } }, { upsert: true, safe: true }, function (errorUpdatingChapter) {
+                        if (errorUpdatingChapter) {
+                            if (errorUpdatingChapter.name == "CastError") {
+                                res
+                                    .status(500)
+                                    .json({
+                                        errorCode: 500,
+                                        errorMessage: "Invalid course ID!",
+                                    });
+                            } else {
+                                res
+                                    .status(500)
+                                    .json({
+                                        errorCode: 500,
+                                        errorMessage: errorUpdatingChapter,
+                                    });
+                            }
                         }
-                    }
-                });
+                    });
+                }
             }
-        }
-    });
+        });
+        return next();
+    } else {
+        // If it's null, we will return an error as it must belong to a course 
+            return res.status(400).json({errorCode: 400, errorMessage: "Sorry but we cannot add this chapter! A chapter must belong to a course!"});
+    }
 });
 
 module.exports = mongoose.model('Chapters', ChapterSchema);

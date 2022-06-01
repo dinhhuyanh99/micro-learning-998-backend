@@ -5,14 +5,14 @@ const express = require('express'),
     { Router } = express,
     coursesRouter = Router();
 // For Courses
-coursesRouter.post('/addCourse', coursesControllers.addCourse);
+coursesRouter.post('/add', coursesControllers.addCourse);
 coursesRouter.get('/all', coursesControllers.getAllCourses);
 coursesRouter.get('/details', coursesControllers.getCourseDetails);
-// coursesRouter.put('/updateDetails', coursesControllers.CourseDetails);
+coursesRouter.put('/updateDetails', coursesControllers.updateCourseDetails); // We can only update 
 // coursesRouter.put('/deleteDetails', coursesControllers.CourseDetails);
 
 // For Chapters
-coursesRouter.post('/chapters/addChapter', coursesControllers.addChapter);
+coursesRouter.post('/chapters/add', coursesControllers.addChapter);
 coursesRouter.get('/chapters/all', coursesControllers.getAllChapters);
 // coursesRouter.get('/chapters/getChapterDetails', coursesControllers.getChapterDetails);
 
