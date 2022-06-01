@@ -8,16 +8,16 @@ const express = require('express'),
 coursesRouter.post('/add', coursesControllers.addCourse);
 coursesRouter.get('/all', coursesControllers.getAllCourses);
 coursesRouter.get('/details', coursesControllers.getCourseDetails);
-coursesRouter.put('/updateDetails', coursesControllers.updateCourseDetails); // We can only update 
+coursesRouter.put('/update', coursesControllers.updateCourseDetails); // We can only update 
 // coursesRouter.put('/deleteDetails', coursesControllers.CourseDetails);
 
 // For Chapters
 coursesRouter.post('/chapters/add', coursesControllers.addChapter);
 coursesRouter.get('/chapters/all', coursesControllers.getAllChapters);
-// coursesRouter.get('/chapters/getChapterDetails', coursesControllers.getChapterDetails);
+coursesRouter.get('/chapters/details', coursesControllers.getChapterDetails);
 
 // For LearnObj
-coursesRouter.post('/learnObj/addLearnObj', coursesControllers.addLearnObj);
+coursesRouter.post('/chapters/learnObj/add', coursesControllers.addLearnObj);
 
 // For LearnRes
 

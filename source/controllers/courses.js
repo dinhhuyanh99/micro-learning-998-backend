@@ -13,7 +13,7 @@ const mongoose = require("mongoose"),
     { SuperUserSchema } = require("../models/users/superuser"),
     Keys = mongoose.model("Keys");
 
-/**
+/** TESTED
  * This function will be in charge of adding the new course into the database
  * Send POST request with the following data inputs: (* as required, + as optional)
  * * courseName
@@ -21,10 +21,6 @@ const mongoose = require("mongoose"),
  * * courseOverview
  * + courseDiscipline
  * + courseLevel
- * + listOfTeachers
- * + listOfStudents
- * + hasChapters
- * + startDate
  * + durationInWeeks
  * 
  * @param {*} req: request from user
@@ -50,10 +46,6 @@ exports.addCourse = function(req, res){
                         req.body.courseOverview == undefined || req.body.courseOverview == null || req.body.courseOverview == "" ||
                         req.body.courseDiscipline == undefined || req.body.courseDiscipline == null ||
                         req.body.courseLevel == undefined || req.body.courseLevel == null ||
-                        req.body.listOfTeachers == undefined || req.body.listOfTeachers == null ||
-                        req.body.listOfStudents == undefined || req.body.listOfStudents == null ||
-                        req.body.hasChapters == undefined || req.body.hasChapters == null ||
-                        req.body.startDate == undefined || req.body.startDate == null ||
                         req.body.durationInWeeks == undefined || req.body.durationInWeeks == null){
                         res.json({ 'errorCode': 400, 'errorMessage': "Please fill in all of the details required! (courseName, courseCode, courseOverview required!)" });
                     } else {
@@ -64,11 +56,9 @@ exports.addCourse = function(req, res){
                             courseOverview: req.body.courseOverview,
                             courseDiscipline: req.body.courseDiscipline,
                             courseLevel: req.body.courseLevel,
-                            // If empty, the one who posted will be uploaded, this will be in here to ensure there is at least 1 teacher assigned
-                            listOfTeachers: (req.body.listOfTeachers == [] || req.body.listOfTeachers.length == 0 ? [uploaderDoc._id] : req.body.listOfTeachers),
-                            listOfStudents: req.body.listOfStudents, // If empty should be an empty array
-                            hasChapters: req.body.hasChapters, // If empty should be an empty array for the user to upload each chapter later on
-                            startDate: (req.body.startDate == "" ? new Date() : new Date(req.body.startDate)), // make sure the user at least give today as the start date
+                            teacherRef: uploaderDoc._id,// This will be the id of the uploader immediately
+                            listOfStudents: [], // Always an empty array since the course needs to be created first then the student can all join later...
+                            hasChapters: [], // Always be empty, the teacher will have to add each chapter later...
                             durationInWeeks: req.body.durationInWeeks
                         });
                         newCourseDetails
@@ -95,7 +85,7 @@ exports.addCourse = function(req, res){
     });
 }
 
-/**
+/** TESTED
  * This function will be in charge of returning the list of courses!
  * send a GET request to /courses/all
  * for teachers/admin/superuser, they can retrieve all courses regardless of the status
@@ -123,10 +113,10 @@ exports.getAllCourses = function(req, res){
                     // We will then check if the user is a teacher/admin/superuser and not a student
                     if (uploaderDoc.__t === "Teachers" ||
                         uploaderDoc.__t === "Admin" ||
-                        uploaderDoc.__t === "SuperUser") {
-                        filterCourses = { courseStatus: 1 };
+                        uploaderDoc.__t === "SuperUser") { // If the user that sent the command over is a teacher/admin/superuser, find all courses
+                        filterCourses = { $or: [{ courseStatus: -1 }, { courseStatus: 0 }, { courseStatus: 1 }] };
                     } else {
-                        filterCourses = { $or: [{ courseStatus: -1 }, { courseStatus: 0 }, { courseStatus: 1 }]};
+                        filterCourses = { courseStatus: 1 }; // Student can only view courses that are active
                     }
                 } else {
                     // If there is a query
@@ -181,10 +171,9 @@ exports.getAllCourses = function(req, res){
                                 res.status(500).json({ 'errorCode': 500, 'errorMessage': errorFindingCourses });
                             } else {
                                 if (coursesList.length == 0) {
-                                    res.status(200).json({ 'results': "There are no courses in the database at the moment!" });
+                                    res.status(200).json({ 'length': coursesList.length, 'results': "There are no courses in the database at the moment!" });
                                 } else {
                                     for (var i = 0; i < coursesList.length; i++) {
-                                        delete (coursesList[i].listOfTeachers); // Remove this because this part is only for displaying in dashboard or something...
                                         delete (coursesList[i].listOfStudents); // Remove this because this part is only for displaying in dashboard or something...
                                     }
 
@@ -199,10 +188,9 @@ exports.getAllCourses = function(req, res){
                                 res.status(500).json({ 'errorCode': 500, 'errorMessage': errorFindingCourses });
                             } else {
                                 if (coursesList.length == 0) {
-                                    res.status(200).json({ 'results': "There are no courses in the database at the moment!" });
+                                    res.status(200).json({ 'length': coursesList.length, 'results': "There are no courses in the database at the moment!" });
                                 } else {
                                     for (var i = 0; i < coursesList.length; i++) {
-                                        delete (coursesList[i].listOfTeachers); // Remove this because this part is only for displaying in dashboard or something...
                                         delete (coursesList[i].listOfStudents); // Remove this because this part is only for displaying in dashboard or something...
                                     }
 
@@ -244,7 +232,7 @@ exports.getCourseDetails = function (req, res) {
                     // If there is a query for the ID
                     if (req.query.courseId != undefined && req.query.courseId != null && req.query.courseId != "") {
                         Courses.findOne({_id: req.query.courseId}).lean()
-                            .populate("listOfTeachers")
+                            .populate("teacherRef")
                             .populate("listOfStudents")
                             .populate("hasChapters")
                             .exec(function (errorFindingCourse, course) {
@@ -258,26 +246,22 @@ exports.getCourseDetails = function (req, res) {
                                     if (course == null || course == undefined) {
                                         res.status(400).json({ 'errorCode': 400, 'errorMessage': "Cannot find this course ID! Please give a valid course ID!" });
                                     } else {
-                                        // Remove all user's personal details , leaving just the first name, last name, email
-                                        for (var i = 0; i < course.listOfTeachers.length; i++) {
-                                            delete (course.listOfTeachers[i].coursesTaught);
-                                            delete (course.listOfTeachers[i].username);
-                                            delete (course.listOfTeachers[i].password);
-                                            delete (course.listOfTeachers[i].phoneNumber);
-                                            delete (course.listOfTeachers[i].dateOfBirth);
-                                            delete (course.listOfTeachers[i].address);
-                                            delete (course.listOfTeachers[i].countryRegion);
-                                            delete (course.listOfTeachers[i].city);
-                                            delete (course.listOfTeachers[i].streetProvince);
-                                            delete (course.listOfTeachers[i].zipCode);
-                                            delete (course.listOfTeachers[i].gender);
-                                            delete (course.listOfTeachers[i].userActivities);
-                                            delete (course.listOfTeachers[i].accountStatus);
-                                            delete (course.listOfTeachers[i].createdAt);
-                                            delete (course.listOfTeachers[i].updatedAt);
-                                            delete (course.listOfTeachers[i].__v);
-                                        }
-
+                                        delete (course.teacherRef.coursesTaught);
+                                        delete (course.teacherRef.username);
+                                        delete (course.teacherRef.password);
+                                        delete (course.teacherRef.phoneNumber);
+                                        delete (course.teacherRef.dateOfBirth);
+                                        delete (course.teacherRef.address);
+                                        delete (course.teacherRef.countryRegion);
+                                        delete (course.teacherRef.city);
+                                        delete (course.teacherRef.streetProvince);
+                                        delete (course.teacherRef.zipCode);
+                                        delete (course.teacherRef.gender);
+                                        delete (course.teacherRef.userActivities);
+                                        delete (course.teacherRef.accountStatus);
+                                        delete (course.teacherRef.createdAt);
+                                        delete (course.teacherRef.updatedAt);
+                                        delete (course.teacherRef.__v);
                                         for (var i = 0; i < course.listOfStudents.length; i++) {
                                             delete (course.listOfStudents[i].coursesLearnt);
                                             delete (course.listOfStudents[i].username);
@@ -315,9 +299,16 @@ exports.getCourseDetails = function (req, res) {
 /**
  * This function will be in charge of returning the list of one course based on the id that the
  * user passed into the url in the form of 
- * sending a put request to /courses/updateDetails?courseId=<insert course Id>
- * 
- * 
+ * sending a put request to /courses/update?courseId=<insert course Id>
+ * For this part, we only allow the user to change the following details
+ * courseName // Must not be null/undefined/empty
+ * courseCode // Must not be null/undefined/empty
+ * courseOverview // Must not be null/undefined/empty
+ * courseDiscipline // Must not be null/undefined/empty
+ * courseLevel // must be 0 1 2 3 4 or 5
+ * courseStatus // must be -1 0 or 1
+ * hasChapters [you can only reorder the chapters with this link, if you want to modify/delete the chapter, use the link for each chapter...]
+ * durationInWeeks
  * 
  * 
  * @param {*} req 
@@ -335,17 +326,149 @@ exports.updateCourseDetails = function (req, res) {
                 var uploaderDoc = success_callback.userId;
                 if (req._parsedUrl.query == null || req._parsedUrl.query == undefined) {
                     // Return an error if the user didn't pass anything in
-                    res.status(400).json({ 'errorCode': 400, 'errorMessage': "Invalid Request! This route is used for taking details of a course! /courses/details?courseId=<put your courseId here>" });
+                    res.status(400).json({ 'errorCode': 400, 'errorMessage': "Invalid Request! This route is used for taking details of a course! /courses/update?courseId=<put your courseId here>" });
                 } else {
                     // If there is a query for the ID
                     if (req.query.courseId != undefined && req.query.courseId != null && req.query.courseId != "") {
-                        // We will check if the one who update the course details is a student 
-                        if(uploaderDoc.__t === "Students"){
-                            // For a student, we will reject the request!
-                            res.status(400).json({ 'errorCode': 400, 'errorMessage': "You cannot update the details of the course if you are a student" });
+                        if(req.body.courseName == undefined || req.body.courseName ==  null || req.body.courseName == "" ||
+                        req.body.courseCode == undefined || req.body.courseCode ==  null || req.body.courseCode == "" ||
+                        req.body.courseOverview == undefined || req.body.courseOverview ==  null || req.body.courseOverview == "" ||
+                        req.body.courseDiscipline == undefined || req.body.courseDiscipline ==  null || req.body.courseDiscipline == "" ||
+                        req.body.courseLevel == undefined || req.body.courseLevel ==  null || req.body.courseLevel == "" ||
+                        req.body.courseStatus == undefined || req.body.courseStatus ==  null || req.body.courseStatus == "" ||
+                        req.body.hasChapters == undefined || req.body.hasChapters ==  null ||
+                        req.body.teacherRef == undefined || req.body.teacherRef == null || req.body.teacherRef == "" ||
+                        req.body.durationInWeeks == undefined || req.body.durationInWeeks ==  null || req.body.durationInWeeks == ""){
+                            // If the update details are invalid, we will return the error immediately
+                            res.status(400).json({ 'errorCode': 400, 'errorMessage': "You have to fill in all new details or leave the old detail as is without modifying them..." });
                         } else {
+                            // If we have a valid body, we will then need to check if the uploader is a students or not
+                            if (uploaderDoc.__t === "Students") {
+                                // For a student, we will reject the request!
+                                res.status(400).json({ 'errorCode': 400, 'errorMessage': "You cannot update the details of the course if you are a student" });
+                            } else { // If the uploader is not a student, we will check and see if they are a teacher and if the ID matches with one from course
+                                if (uploaderDoc.__t === "Teachers") {
+                                    if (req.body.teacherRef != uploaderDoc._id) { // Check the ID of the one being sent in and the API of the one who submitted
+                                        return res.status(400).json({ 'errorCode': 400, 'errorMessage': "You cannot update the details of the course if you are not the original teacher!" });
+                                    }
+                                }
+                                // So if they are teacher (that has a matching ID)/admin/superuser, we will query for the course ID
+                                Courses.findOne({_id: req.query.courseId}).lean()
+                                .exec(function(errorFindingCourse, resultCourse){
+                                    if (errorFindingCourse) {
+                                        if (errorFindingCourse.name == "CastError") {
+                                            return res.status(400).json({ 'errorCode': 400, 'errorMessage': "Invalid Course ID! Please give a valid course ID" });
+                                        } else {
+                                            return res.status(500).json({ 'errorCode': 500, 'errorMessage': errorFindingCourse });
+                                        }
+                                    } else {
+                                        if (resultCourse == null || resultCourse == undefined) {
+                                            return res.status(400).json({ 'errorCode': 400, 'errorMessage': "Cannot find this course ID! Please give a valid course ID!" });
+                                        } else {
+                                            // If we have a course, we will then check each element within the result course and see if they are different from the one we posted and only update the necessary details
+                                            // We assign the course details we found into a new variable
+                                            var updatedDetails = req.body;
+                                            // Begin checking
+                                            // If it isn't matching, we will leave the details in the updatedDetails object
+                                            // If it is matching, we will remove the details in the updatedDetails object
+                                            if(req.body.courseName === resultCourse.courseName){
+                                                delete(updatedDetails.courseName);
+                                            }
 
+                                            if (req.body.courseCode === resultCourse.courseCode) {
+                                                delete (updatedDetails.courseCode);
+                                            }
+
+                                            if (req.body.courseOverview === resultCourse.courseOverview) {
+                                                delete (updatedDetails.courseOverview);
+                                            }
+
+                                            if (req.body.courseDiscipline === resultCourse.courseDiscipline) {
+                                                delete (updatedDetails.courseDiscipline);
+                                            }
+
+                                            if (req.body.courseLevel === resultCourse.courseLevel) {
+                                                delete (updatedDetails.courseLevel);
+                                            } else {
+                                                // If it's different, we need to check if the new courseLevel is valid (0, 1, 2, 3, 4, 5) only
+                                                if (req.body.courseLevel != 0 &&
+                                                    req.body.courseLevel != 1 &&
+                                                    req.body.courseLevel != 2 &&
+                                                    req.body.courseLevel != 3 &&
+                                                    req.body.courseLevel != 4 &&
+                                                    req.body.courseLevel != 5) {
+                                                        // We will set it back to the old value...
+                                                        updatedDetails.courseLevel = resultCourse.courseLevel;
+                                                    }
+
+                                            }
+
+                                            if (req.body.courseStatus === resultCourse.courseStatus) {
+                                                delete (updatedDetails.courseStatus);
+                                            } else {
+                                                // If it's different, we need to check if the new courseStatus is valid (-1, 0, 1) only
+                                                if (req.body.courseStatus != 0 &&
+                                                    req.body.courseStatus != 1 &&
+                                                    req.body.courseStatus != -1) {
+                                                    // We will set it back to the old value...
+                                                    updatedDetails.courseStatus = resultCourse.courseStatus;
+                                                }
+                                            }
+
+                                            if (req.body.durationInWeeks === resultCourse.durationInWeeks) {
+                                                delete (updatedDetails.durationInWeeks);
+                                            } else {
+                                                if (req.body.durationInWeeks == undefined || req.body.durationInWeeks == null || req.body.durationInWeeks == ""){
+                                                    // invalid value will make it turned back to the original value
+                                                    updatedDetails.durationInWeeks = resultCourse.durationInWeeks;
+                                                } else {
+                                                    // If it's a valid value
+                                                    if(req.body.durationInWeeks < 1){
+                                                        // invalid value will make it turned back to the original value
+                                                        updatedDetails.durationInWeeks = resultCourse.durationInWeeks;
+                                                    }
+                                                }
+                                            }
+                                            // For the array containing chapters, we support reordering of the Ids
+                                            // We will loop through the list of ids, see if they are still in order, if there is one that is out of order, we will replace the array immediately with the new one...
+                                            if(req.body.hasChapters.length != 0 && resultCourse.hasChapters.length == 0){ // If the body sent more details out of no where??
+                                                // return error
+                                                return res.status(400).json({ 'errorCode': 400, 'errorMessage': "Do not send the list of chapters details if the original doesn't have any..." });
+                                            } else if (req.body.hasChapters.length == 0 && resultCourse.hasChapters.length != 0) { // If the body sent fewer details than the original,
+                                                return res.status(400).json({ 'errorCode': 400, 'errorMessage': "Do not delete the references of chapters from here, delete each chapter one by one!" });
+                                            } else if (req.body.hasChapters.length != 0 && resultCourse.hasChapters.length != 0) { // If the length of both is different
+                                                if (req.body.hasChapters.length == resultCourse.hasChapters.length){ // If they are of the same length
+                                                    var isTheSame = true;
+                                                    // loop through and check if they are the same on both array
+                                                    for(var i = 0; i < resultCourse.hasChapters.length; i++){
+                                                        if(req.body.hasChapters[i] != resultCourse.hasChapters[i]){
+                                                            // set isTheSame to false
+                                                            isTheSame = false;
+                                                            break;
+                                                        }
+                                                    }
+                                                    if(isTheSame){
+                                                        delete (updatedDetails.hasChapters);        
+                                                    } else {
+                                                        // If the one on updated sight is different, we will use the new one to replace the old one immediately.
+                                                    }
+
+                                                } else {
+                                                    // If they are of different length...
+                                                    return res.status(400).json({ 'errorCode': 400, 'errorMessage': "Do not delete or add the references of chapters from here, delete or add each chapter one by one!" });
+                                                }
+                                            } else {
+                                                // If both are empty, then we would just ignore it by removing it from updatedDetails
+                                                delete(updatedDetails.hasChapters);
+                                            }
+                                            return res.status(200).json(updatedDetails);
+                                        }
+                                    }
+                                });
+
+                            }
                         }
+                        
                     } else {
                         res.status(400).json({ 'errorCode': 400, 'errorMessage': "courseId query string must be the ID of the course you want to get!" });
                     }
@@ -364,10 +487,8 @@ exports.updateCourseDetails = function (req, res) {
  * The body of the request will be as follows (* is required, + is optional)
  * {
     * "chapterName": 
-    * "belongToCourse": "6284ba94ae3178f2901ae5b5",
-    + "nextChapter": null, // Only use null if you don't want to link it with any chapter next
-    + "previousChapter": null // Only use null if you don't want to link it with any chapter previously
-}
+    * "belongToCourse": "6284ba94ae3178f2901ae5b5"
+ * }
  * 
  * @param {*} req 
  * @param {*} res 
@@ -413,6 +534,29 @@ exports.addChapter = function (req, res) {
                                     newChapter
                                         .save()
                                         .then((saved) => {
+                                            //We add one to the uploader activities too.
+                                            // If it's alright, we will update the coursesTaught list for the particular Teachers
+                                            Users.updateOne({ _id: uploaderDoc._id, __t: uploaderDoc.__t }, { $push: { userActivities: { activityDescription: "Added a chapter with the name " + req.body.chapterName + " with ID: [" + newChapter._id + "]." } } }, { upsert: true, safe: true }, function (errorUpdatingUser, updatingResult) {
+                                                if (errorUpdatingUser) {
+                                                    if (errorUpdatingUser.name == "CastError") {
+                                                        res
+                                                            .status(500)
+                                                            .json({
+                                                                errorCode: 500,
+                                                                errorMessage: "Invalid user ID!",
+                                                            });
+                                                        return next();
+                                                    } else {
+                                                        res
+                                                            .status(500)
+                                                            .json({
+                                                                errorCode: 500,
+                                                                errorMessage: errorUpdatingUser,
+                                                            });
+                                                        return next();
+                                                    }
+                                                }
+                                            });
                                             res.status(200).json({
                                                 result:
                                                     "Successfully created a chapter for the course [" + courseObject._id + "] " + courseObject.courseName + " !",
@@ -494,9 +638,61 @@ exports.getAllChapters = function (req, res) { // Anyone who is logged in will b
 }
 
 /**
- * This function is specifically for getting all chapters of a current course
- * the path is /courses/chapters/all with GET request with courseId in the query part of the url
- * like /courses/chapters/all?courseId=<course id>
+ * This function will be in charge of returning a chapter based on the id that the
+ * user passed into the url in the form of 
+ * sending a GET request to /courses/chapters/details?chapterId=<insert chapter Id>
+ * 
+ * @param {*} req 
+ * @param {*} res 
+ */
+exports.getChapterDetails = function (req, res) {
+    const APIKEY = req.header('APIKEY');
+    Keys.findOne({ key: APIKEY }).populate('userId').lean().then((success_callback) => {
+        if (success_callback != null || success_callback != undefined) {
+            var currentDate = new Date(Date.now());
+            var expiredDate = new Date(success_callback.expiredOn);
+            if ((currentDate.getTime()) >= (expiredDate.getTime())) {
+                res.status(401).json({ 'errorCode': 401, 'errorMessage': "Unauthorized access! API Key is outdated. Please login and try again!" });
+            } else {
+                var uploaderDoc = success_callback.userId;
+                if (req._parsedUrl.query == null || req._parsedUrl.query == undefined) {
+                    // Return an error if the user didn't pass anything in
+                    res.status(400).json({ 'errorCode': 400, 'errorMessage': "Invalid Request! This route is used for taking details of a course! /courses/chapters/details?chapterId=<put your chapterId here>" });
+                } else {
+                    // If there is a query for the ID
+                    if (req.query.chapterId != undefined && req.query.chapterId != null && req.query.chapterId != "") {
+                        Chapters.findOne({ _id: req.query.chapterId }).lean()
+                            .populate("learningObjects")
+                            .exec(function (errorFindingChapter, chapter) {
+                                if (errorFindingChapter) {
+                                    if (errorFindingChapter.name == "CastError") {
+                                        res.status(400).json({ 'errorCode': 400, 'errorMessage': "Invalid Chapter ID! Please give a valid chapter ID" });
+                                    } else {
+                                        res.status(500).json({ 'errorCode': 500, 'errorMessage': errorFindingChapter });
+                                    }
+                                } else {
+                                    if (chapter == null || chapter == undefined) {
+                                        res.status(400).json({ 'errorCode': 400, 'errorMessage': "Cannot find this Chapter ID! Please give a valid chapter ID!" });
+                                    } else {
+                                        
+                                        res.status(200).json({ "result": chapter });
+                                    }
+                                }
+                            });
+                    } else {
+                        res.status(400).json({ 'errorCode': 400, 'errorMessage': "chapterId query string must be the ID of the chapter you want to get!" });
+                    }
+
+                }
+            }
+        } else {
+            res.status(401).json({ 'errorCode': 401, 'errorMessage': "Unauthorized access! API Key not found in the server, please login and try again!" });
+        }
+    });
+}
+
+/**
+ * This function is specifically for adding new learning objectives to a chapter
  * 
  *
  * @param {*} req 
@@ -511,28 +707,106 @@ exports.addLearnObj = function (req, res){
             if ((currentDate.getTime()) >= (expiredDate.getTime())) {
                 res.status(401).json({ 'errorCode': 401, 'errorMessage': "Unauthorized access! API Key is outdated. Please login and try again!" });
             } else {
-                var newLearningObj = new LearnObj({
-                    title: req.body.title,
-                    belongToChapter: req.body.belongToChapter,
-                    description: req.body.description,
-                    previousLearnObj: req.body.previousLearnObj,
-                    nextLearnObj: req.body.nextLearnObj,
-                    hasLearningResource: req.body.hasLearningResource,
-                    hasParentLearnObj: req.body.hasParentLearnObj,
-                    hasChildrenLearnObj: req.body.hasChildrenLearnObj
-                });
-                newLearningObj.save().then((saved) => {
-                    res.status(200).json({
-                        result:
-                            "Successfully added a learning object for the chapter !",
-                    });
-                })
-                    .catch((saving_err) => {
-                        res.status(500).json({ errorCode: 500, errorMessage: saving_err.toString() });
-                    });
+                // We will then check if the user is a teacher/admin/superuser and not a student
+                var uploaderDoc = success_callback.userId;
+                if (uploaderDoc.__t === "Teachers" ||
+                    uploaderDoc.__t === "Admin" ||
+                    uploaderDoc.__t === "SuperUser") {
+                    if (req.body.title == undefined || req.body.title == null || req.body.title == "" ||
+                        req.body.belongToChapter === undefined ||
+                        req.body.hasParentLearnObj === undefined ||
+                        req.body.description == undefined || req.body.description == null || req.body.description == "") {
+                        res.status(400).json({ 'errorCode': 400, 'errorMessage': "Please fill in all of the details required! (title, belongToChapter(the ID of the chapter this learning objective belongs to) OR hasParentLearnObj, description required!)" });
+                    } else {
+                        // We will check value for belongToChapter and hasParentLearnObj
+                        if(req.body.belongToChapter != null && req.body.hasParentLearnObj != null){// We cannot have both, we can only have either, we return an error
+                            return res.status(400).json({'errorCode': 400, 'errorMessage': "Please only put in either the chapter the learning object belongs to, or the parent learning object."});
+                        } else if (req.body.belongToChapter != null && req.body.hasParentLearnObj == null) {
+                            // If we add the belongToChapter, we will try to find if that chapter exists
+                            Chapters.findOne({ _id: req.body.belongToChapter }, function (errorFindingChapter, chapterObject) { // Check if the course actually exists, if not, we will not create the chapter
+                                if (errorFindingChapter) {
+                                    if (errorFindingChapter.name == "CastError") {
+                                        return res.status(400).json({ 'errorCode': 400, 'errorMessage': "Invalid Chapter ID! Please give a valid Chapter ID to bind this learning object with!" });
+                                    } else {
+                                        return res.status(500).json({ 'errorCode': 500, 'errorMessage': errorFindingChapter });
+                                    }
+                                } else {
+                                    if (chapterObject == null || chapterObject == undefined) {
+                                        return res.status(400).json({ 'errorCode': 400, 'errorMessage': "Invalid Chapter ID! Please give a valid Chapter ID to bind this learning object with!" });
+                                    }
+                                }
+                            });
+                        } else if (req.body.belongToChapter == null && req.body.hasParentLearnObj != null) {
+                            // If we add the hasParentLearnObj, we will try to find if that learnObj exists
+                            // If we add the belongToChapter, we will try to find if that chapter exists
+                            LearnObj.findOne({ _id: req.body.hasParentLearnObj }, function (errorFindingLearnObj, learningObject) { // Check if the course actually exists, if not, we will not create the chapter
+                                if (errorFindingLearnObj) {
+                                    if (errorFindingLearnObj.name == "CastError") {
+                                        return res.status(400).json({ 'errorCode': 400, 'errorMessage': "Invalid LearnObj ID! Please give a valid LearnObj ID to bind this learning object with!" });
+                                    } else {
+                                        return res.status(500).json({ 'errorCode': 500, 'errorMessage': errorFindingLearnObj });
+                                    }
+                                } else {
+                                    if (learningObject == null || learningObject == undefined) {
+                                        return res.status(400).json({ 'errorCode': 400, 'errorMessage': "Invalid LearnObj ID! Please give a valid LearnObj ID to bind this learning object with!" });
+                                    }
+                                }
+                            });
+                        } else {
+                            // if both are null, return error, 
+                            return res.status(400).json({ 'errorCode': 400, 'errorMessage': "Please only put in at least the chapter the learning object belongs to, OR the parent learning object." });
+                        }
+                        // If everything is alright, we should be able to create a new object to add
+                        var newLearnObj = new LearnObj({
+                            title: req.body.title,
+                            belongToChapter: req.body.belongToChapter,
+                            description: req.body.description,
+                            hasLearningResource: [],
+                            hasParentLearnObj: req.body.hasParentLearnObj,
+                            hasChildrenLearnObj: []
+                        });
+                        newLearnObj
+                            .save()
+                            .then((saved) => {
+                                Users.updateOne({ _id: uploaderDoc._id, __t: uploaderDoc.__t }, { $push: { userActivities: { activityDescription: "Added a learning object with the name " + req.body.title + " with ID: [" + newLearnObj._id + "]." } } }, { upsert: true, safe: true }, function (errorUpdatingUser, updatingResult) {
+                                    if (errorUpdatingUser) {
+                                        if (errorUpdatingUser.name == "CastError") {
+                                            res
+                                                .status(500)
+                                                .json({
+                                                    errorCode: 500,
+                                                    errorMessage: "Invalid user ID!",
+                                                });
+                                            return next();
+                                        } else {
+                                            res
+                                                .status(500)
+                                                .json({
+                                                    errorCode: 500,
+                                                    errorMessage: errorUpdatingUser,
+                                                });
+                                            return next();
+                                        }
+                                    }
+                                });
+                                return res.status(200).json({
+                                    result:
+                                        "Successfully created a learning object with name \"" + newLearnObj.title + "\" with ID: " + newLearnObj._id + "!",
+                                });
+                            })
+                            .catch((saving_err) => {
+                                return res.status(500).json({ errorCode: 500, errorMessage: saving_err.toString() });
+                            });
+                           
+
+                    }
+                } else {
+                    return res.status(403).json({ 'errorCode': 401, 'errorMessage': "This action is unauthorized since you are a student!" });
+                }
+
             }
         } else {
-            res.status(401).json({ 'errorCode': 401, 'errorMessage': "Unauthorized access! API Key not found in the server, please login and try again!" });
+            return res.status(401).json({ 'errorCode': 401, 'errorMessage': "Unauthorized access! API Key not found in the server, please login and try again!" });
         }
     });
 }

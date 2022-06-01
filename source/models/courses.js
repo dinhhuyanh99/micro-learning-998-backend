@@ -39,9 +39,8 @@ var CourseSchema = new Schema({
             message: courseStatusOutput => `${courseStatusOutput.value} is not a valid course status value.`
         }
     },
-    listOfTeachers: {
-        type: [{ type : mongoose.Schema.Types.ObjectId, ref: 'Users' }],
-		default: []
+    teacherRef: { // Changed to 1 teacher 1 course only
+        type: mongoose.Schema.Types.ObjectId, ref: 'Users' 
     },
     listOfStudents: {
         type: [{ type : mongoose.Schema.Types.ObjectId, ref: 'Users' }],
@@ -51,87 +50,42 @@ var CourseSchema = new Schema({
         type: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Chapters' }],
         default: []
     },
-    startDate: {
-        type: Date,
-        default: Date.now
-    },
     durationInWeeks: { // Smallest duration must be 1 week!
         type: Number,
         default: 1
-    },
-    endDate: { // When end date is reached, we will deactivate the site and hide it for teacher and students.
-        type: Date,
-        default: null
     }
 }, {timestamps: true});
 
-CourseSchema.pre('save', function (next, done) { // Before saving, calculate the end date of the course
+CourseSchema.pre('save', function (next, done) { // Set the duration back to 1 if it's smaller or undefined/null
     var objectToSave = this;
-    var expiredOnDate = new Date(this.startDate);
     if(this.durationInWeeks < 1 || this.durationInWeeks == undefined || this.durationInWeeks == null || this.durationInWeeks == NaN || this.durationInWeeks == ""){
         this.durationInWeeks = 1; // Smallest duration must be 1 week!
     }
-    expiredOnDate.setDate(new Date(this.startDate).getDate() + this.durationInWeeks * 7);
-    this.endDate = expiredOnDate;
-
-    // We will also check if the list of teachers contain all teachers
-    this.listOfTeachers.forEach(el => {
-        Users.findOne({_id: el}, function(err, doc){
+    // We will also check if the teacher is available then update the teacher's list to reflect the course they are teaching
+    if (objectToSave.teacherRef == undefined || objectToSave.teacherRef == null || objectToSave.teacherRef == ""){ // if it's empty, which never happened, but we will still put this here
+        res
+            .status(500)
+            .json({
+                errorCode: 500,
+                errorMessage: "Sorry but teacher reference cannot be null",
+            });
+        return next();
+    } else {
+        Users.findOne({ _id: objectToSave.teacherRef }, function (err, doc) {
             if (err) {
                 return next(err);
             } else {
                 if (doc == null || doc == undefined) {
-                    return next("This teacher " + el + " doesn't exist in the system!");
+                    return next("This teacher " + objectToSave.teacherRef + " doesn't exist in the system!");
                 } else { //  If the teacher actually exists
                     // Check __t for the type
-                    if(doc.__t != "Teachers" &&
-                        doc.__t != "Admin" &&
-                        doc.__t != "SuperUser"){
-                            return next("The user that is assigned to this must be a teacher or of higher levels in the system")
-                        }
-                    // If it's alright, we will update the coursesTaught list for the particular Teacher
-                    Users.updateOne({ _id: doc._id, __t: doc.__t }, { $push: { coursesTaught: objectToSave._id } }, { upsert: true, safe: true }, function (errorUpdatingUser, updatingResult) {
-                        if (errorUpdatingUser) {
-                            if (errorUpdatingUser.name == "CastError") {
-                                res
-                                    .status(500)
-                                    .json({
-                                        errorCode: 500,
-                                        errorMessage: "Invalid user ID!",
-                                    });
-                                return next();
-                            } else {
-                                res
-                                    .status(500)
-                                    .json({
-                                        errorCode: 500,
-                                        errorMessage: errorUpdatingUser,
-                                    });
-                                return next();
-                            }
-                        }
-                    });
-                }
-            }
-        });
-    });
-    // We will also check if the list of teachers contain all students
-    this.listOfStudents.forEach(el => {
-        Users.findOne({ _id: el }, function (err, doc) {
-            if (err) {
-                return next(err);
-            } else {
-                if (doc == null || doc == undefined) {
-                    return next("This student " + el + " doesn't exist in the system!");
-                } else { //  If the teacher actually exists
-                    // Check __t for the type
-                    if (doc.__t != "Students" &&
+                    if (doc.__t != "Teachers" &&
                         doc.__t != "Admin" &&
                         doc.__t != "SuperUser") {
-                        return next("The user that is assigned to this must be a student or of higher levels in the system")
+                        return next("The user that is assigned to this must be a teacher or of higher levels in the system");
                     }
-                    // If it's alright, we will update the coursesTaught list for the particular Students
-                    Users.updateOne({ _id: doc._id, __t: doc.__t }, { $push: { coursesLearnt: objectToSave._id } }, { upsert: true, safe: true }, function (errorUpdatingUser, updatingResult) {
+                    // If it's alright, we will update the coursesTaught list for the particular Teachers
+                    Users.updateOne({ _id: doc._id, __t: doc.__t }, { $push: { coursesTaught: objectToSave._id, userActivities: { activityDescription: "Added a course with the name " + objectToSave.courseName + " with ID: [" + objectToSave._id + "]." } } }, { upsert: true, safe: true }, function (errorUpdatingUser, updatingResult) {
                         if (errorUpdatingUser) {
                             if (errorUpdatingUser.name == "CastError") {
                                 res
@@ -154,8 +108,9 @@ CourseSchema.pre('save', function (next, done) { // Before saving, calculate the
                     });
                 }
             }
-        });
-    });
+        });    
+    }
+    // We don't need to check for student since they have to enrol themselves later...
     return next();
 });
 

@@ -57,7 +57,7 @@ ChapterSchema.pre('save', function (next) { // Before saving, calculate the end 
         return next();
     } else {
         // If it's null, we will return an error as it must belong to a course 
-            return res.status(400).json({errorCode: 400, errorMessage: "Sorry but we cannot add this chapter! A chapter must belong to a course!"});
+        return res.status(400).json({errorCode: 400, errorMessage: "Sorry but we cannot add this chapter! A chapter must belong to a course!"});
     }
 });
 
