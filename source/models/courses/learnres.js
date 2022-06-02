@@ -1,5 +1,6 @@
 'use strict';
 const mongoose = require('mongoose'),
+    LearningObjects = mongoose.model("LearnObj"),
     Schema = mongoose.Schema;
 
 var LearningResourceSchema = new Schema({
@@ -9,11 +10,12 @@ var LearningResourceSchema = new Schema({
     },
     description: {
         type: String,
-        required: "Please give a brief description of the learning objective!"
+        required: "Please give a brief description of the learning resource!"
     },
     belongToLearnObj: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: 'LearnObj'
+        ref: 'LearnObj',
+        required: "Please give a learning objective!"
     },
     visible: {
         type: Boolean,
@@ -25,106 +27,43 @@ var LearningResourceSchema = new Schema({
     }
 }, { timestamps: true });
 
-var LearningResVidSchema = LearningResourceSchema.discriminator('Video', new mongoose.Schema({
-    hasTranscripts: {
-        type: [{
-            videoTimestamp: {
-                type: Number
-            },
-            content: {
-                type: String
-            }
-        }],
-        default:[]
-    },
-    videoUrl: {
-        type: String,
-        required: "Please put in the link towards the video here!"
-    }
-}));
-
-var LearningResReadSchema = LearningResourceSchema.discriminator('Reading', new mongoose.Schema({
-    content: {
-        type: String,
-        required: "Please put in the content for the Reading section of the resource."
-    }
-}));
-
-var LearningResQuizSchema = LearningResourceSchema.discriminator('Quiz', new mongoose.Schema({
-    multipleChoicesQuestions: {
-        type: [{
-            questionDescription: {
-                type: String,
-                required: "You need to enter the question!"
-            },
-            questionChoices: [{
-                answerDescription: {
-                    type: String,
-                    required: "Please enter the answer to the quiz"
-                },
-                answerIndex: {
-                    type: Number,
-                    required: "Please give this answer an index!"
+LearningResourceSchema.pre('save', function (next) {
+    var objectToSave = this;
+    if (objectToSave.belongToLearnObj != null) {
+        LearningObjects.findOne({ _id: objectToSave.belongToLearnObj }, function (err, doc) {
+            if (err) {
+                return next(err);
+            } else {
+                if (doc == null || doc == undefined) {
+                    return next("This learning object doesn't exist in the system!");
+                } else {
+                    // Push the ID into Courses object
+                    LearningObjects.updateOne({ _id: objectToSave.belongToLearnObj }, { $push: { hasLearningResource: objectToSave._id } }, { upsert: true, safe: true }, function (errorUpdatingLearnObj) {
+                        if (errorUpdatingLearnObj) {
+                            if (errorUpdatingLearnObj.name == "CastError") {
+                                res
+                                    .status(500)
+                                    .json({
+                                        errorCode: 500,
+                                        errorMessage: "Invalid learn obj ID!",
+                                    });
+                            } else {
+                                res
+                                    .status(500)
+                                    .json({
+                                        errorCode: 500,
+                                        errorMessage: errorUpdatingLearnObj,
+                                    });
+                            }
+                        }
+                    });
                 }
-            }],
-            response: {
-                type: Number,
-                required: "Please give this question the correct answer index!"
             }
-        }],
-        default: []
-    },
-    checkboxQuestions: {
-        type: [{
-            questionDescription: {
-                type: String,
-                required: "You need to enter the question!"
-            },
-            questionChoices: [{
-                answerDescription: {
-                    type: String,
-                    required: "Please enter the answer to the quiz"
-                },
-                answerIndex: {
-                    type: Number,
-                    required: "Please give this answer an index!"
-                }
-            }],
-            response: {
-                type: [Number], // An array of correct indices
-                default: [],
-                required: "Please give this question the correct answer indices!"
-            }
-        }],
-        default: []
-    },
-    trueFalseQuestions: {
-        type: [{
-            questionDescription: {
-                type: String,
-                required: "You need to enter the question!"
-            },
-            response: {
-                type: Boolean,
-                required: "Please give this question the correct answer (Either true or false)!"
-            }
-        }],
-        default: []
-    },
-    fillInTheBlankQuestions: {
-        type: [{
-            questionDescription: {
-                type: String,
-                required: "You need to enter the question that includes all the blank space indicated as _ (underscore)!"
-            },
-            response: {
-                type: [String], // An array containing words
-                required: "Please give this question the list of correct words to fill in the blank in the order that they supposed to go into the question! DO NOT SHUFFLE IT!"
-            }
-        }],
-        default: []
+        });
+        return next();
+    } else {
+        // If it's null, we will return an error as it must belong to a course 
+        return res.status(400).json({ errorCode: 400, errorMessage: "Sorry but we cannot add this resource! A resource must belong to a learning object!" });
     }
-
-}));
-
+});
 module.exports = mongoose.model('LearningResource', LearningResourceSchema);

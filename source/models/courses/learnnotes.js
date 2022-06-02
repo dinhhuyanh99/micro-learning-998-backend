@@ -9,15 +9,17 @@ var LearningNotesSchema = new Schema({
     },
     description: {
         type: String,
-        required: "Please give a brief description of the learning objective!"
+        required: "Please give a brief description for the note!"
     },
     belongToLearningResource: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: 'LearningResource'
+        ref: 'LearningResource',
+        default: null
     },
     belongToUser: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: 'Users'
+        ref: 'Users',
+        required: "Please give an user ID for binding!"
     }
 }, { timestamps: true });
 

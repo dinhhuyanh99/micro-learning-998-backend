@@ -21,7 +21,7 @@ var ChapterSchema = new Schema({
 }, { timestamps: true });
 
 
-ChapterSchema.pre('save', function (next) { // Before saving, calculate the end date of the course
+ChapterSchema.pre('save', function (next) {
     var objectToSave = this;
     if(objectToSave.belongToCourse != null){
         Courses.findOne({ _id: objectToSave.belongToCourse }, function (err, doc) {

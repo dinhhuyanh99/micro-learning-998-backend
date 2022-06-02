@@ -7,6 +7,11 @@ const mongoose = require("mongoose"),
     Chapters = mongoose.model("Chapters"),
     LearnObjSchema = require("../models/courses/learnobj"),
     LearnObj = mongoose.model("LearnObj"),
+    LearningResourceSchema = require("../models/courses/learnres"),
+    LearningResource = mongoose.model("LearningResource"),
+    { LearningResVidSchema } = require("../models/courses/learnresvid"),
+    { LearningResReadSchema } = require("../models/courses/learnresread"),
+    { LearningResQuizSchema } = require("../models/courses/learnresquiz"),
     { TeacherSchema } = require("../models/users/teachers"),
     { StudentSchema } = require("../models/users/students"),
     { AdminSchema } = require("../models/users/admin"),
@@ -207,7 +212,7 @@ exports.getAllCourses = function(req, res){
     });
 }
 
-/**
+/** TESTED
  * This function will be in charge of returning the list of one course based on the id that the
  * user passed into the url in the form of 
  * sending a GET request to /courses/details?courseId=<insert course Id>
@@ -296,7 +301,7 @@ exports.getCourseDetails = function (req, res) {
     });
 }
 
-/**
+/** TESTED
  * This function will be in charge of returning the list of one course based on the id that the
  * user passed into the url in the form of 
  * sending a put request to /courses/update?courseId=<insert course Id>
@@ -481,7 +486,7 @@ exports.updateCourseDetails = function (req, res) {
     });
 }
 
-/**
+/** TESTED
  * This function is specifically for adding chapter to current existing course from the teacher/admin/superuser perspective
  * the path is /courses/chapters/addChapter with POST request
  * The body of the request will be as follows (* is required, + is optional)
@@ -582,7 +587,7 @@ exports.addChapter = function (req, res) {
     });
 }
 
-/**
+/** TESTED
  * This function is specifically for getting all chapters of a current course
  * the path is /courses/chapters/all with GET request with courseId in the query part of the url
  * like /courses/chapters/all?courseId=<course id>
@@ -637,7 +642,7 @@ exports.getAllChapters = function (req, res) { // Anyone who is logged in will b
     });
 }
 
-/**
+/** TESTED
  * This function will be in charge of returning a chapter based on the id that the
  * user passed into the url in the form of 
  * sending a GET request to /courses/chapters/details?chapterId=<insert chapter Id>
@@ -691,7 +696,7 @@ exports.getChapterDetails = function (req, res) {
     });
 }
 
-/**
+/** TESTED
  * This function is specifically for adding new learning objectives to a chapter
  * 
  * The path is /courses/chapters/learnobj/add
@@ -724,7 +729,6 @@ exports.addLearnObj = function (req, res){
                         req.body.description == undefined || req.body.description == null || req.body.description == "") {
                         res.status(400).json({ 'errorCode': 400, 'errorMessage': "Please fill in all of the details required! (title, belongToChapter(the ID of the chapter this learning objective belongs to) OR hasParentLearnObj, description required!)" });
                     } else {
-                        var isOkToSave = false;
                         // We will check value for belongToChapter and hasParentLearnObj
                         if(req.body.belongToChapter != null && req.body.hasParentLearnObj != null){// We cannot have both, we can only have either, we return an error
                             return res.status(400).json({'errorCode': 400, 'errorMessage': "Please only put in either the chapter the learning object belongs to, or the parent learning object."});
@@ -741,7 +745,47 @@ exports.addLearnObj = function (req, res){
                                     if (chapterObject == null || chapterObject == undefined) {
                                         return res.status(400).json({ 'errorCode': 400, 'errorMessage': "Invalid Chapter ID! Please give a valid Chapter ID to bind this learning object with!" });
                                     } else {
-                                        isOkToSave = true;
+                                        // If everything is alright, we should be able to create a new object to add
+                                        var newLearnObj = new LearnObj({
+                                            title: req.body.title,
+                                            belongToChapter: req.body.belongToChapter,
+                                            description: req.body.description,
+                                            hasLearningResource: [],
+                                            hasParentLearnObj: req.body.hasParentLearnObj,
+                                            hasChildrenLearnObj: []
+                                        });
+                                        newLearnObj
+                                            .save()
+                                            .then((saved) => {
+                                                Users.updateOne({ _id: uploaderDoc._id, __t: uploaderDoc.__t }, { $push: { userActivities: { activityDescription: "Added a learning object with the name " + req.body.title + " with ID: [" + newLearnObj._id + "]." } } }, { upsert: true, safe: true }, function (errorUpdatingUser, updatingResult) {
+                                                    if (errorUpdatingUser) {
+                                                        if (errorUpdatingUser.name == "CastError") {
+                                                            res
+                                                                .status(500)
+                                                                .json({
+                                                                    errorCode: 500,
+                                                                    errorMessage: "Invalid user ID!",
+                                                                });
+                                                            return next();
+                                                        } else {
+                                                            res
+                                                                .status(500)
+                                                                .json({
+                                                                    errorCode: 500,
+                                                                    errorMessage: errorUpdatingUser,
+                                                                });
+                                                            return next();
+                                                        }
+                                                    }
+                                                });
+                                                return res.status(200).json({
+                                                    result:
+                                                        "Successfully created a learning object with name \"" + newLearnObj.title + "\" with ID: " + newLearnObj._id + "!",
+                                                });
+                                            })
+                                            .catch((saving_err) => {
+                                                return res.status(500).json({ errorCode: 500, errorMessage: saving_err.toString() });
+                                            });
                                     }
                                 }
                             });
@@ -759,56 +803,53 @@ exports.addLearnObj = function (req, res){
                                     if (learningObject == null || learningObject == undefined) {
                                         return res.status(400).json({ 'errorCode': 400, 'errorMessage': "Invalid LearnObj ID! Please give a valid LearnObj ID to bind this learning object with!" });
                                     } else {
-                                        isOkToSave = true;
+                                        // If everything is alright, we should be able to create a new object to add
+                                        var newLearnObj = new LearnObj({
+                                            title: req.body.title,
+                                            belongToChapter: req.body.belongToChapter,
+                                            description: req.body.description,
+                                            hasLearningResource: [],
+                                            hasParentLearnObj: req.body.hasParentLearnObj,
+                                            hasChildrenLearnObj: []
+                                        });
+                                        newLearnObj
+                                            .save()
+                                            .then((saved) => {
+                                                Users.updateOne({ _id: uploaderDoc._id, __t: uploaderDoc.__t }, { $push: { userActivities: { activityDescription: "Added a learning object with the name " + req.body.title + " with ID: [" + newLearnObj._id + "]." } } }, { upsert: true, safe: true }, function (errorUpdatingUser, updatingResult) {
+                                                    if (errorUpdatingUser) {
+                                                        if (errorUpdatingUser.name == "CastError") {
+                                                            res
+                                                                .status(500)
+                                                                .json({
+                                                                    errorCode: 500,
+                                                                    errorMessage: "Invalid user ID!",
+                                                                });
+                                                            return next();
+                                                        } else {
+                                                            res
+                                                                .status(500)
+                                                                .json({
+                                                                    errorCode: 500,
+                                                                    errorMessage: errorUpdatingUser,
+                                                                });
+                                                            return next();
+                                                        }
+                                                    }
+                                                });
+                                                return res.status(200).json({
+                                                    result:
+                                                        "Successfully created a learning object with name \"" + newLearnObj.title + "\" with ID: " + newLearnObj._id + "!",
+                                                });
+                                            })
+                                            .catch((saving_err) => {
+                                                return res.status(500).json({ errorCode: 500, errorMessage: saving_err.toString() });
+                                            });
                                     }
                                 }
                             });
                         } else {
                             // if both are null, return error, 
                             return res.status(400).json({ 'errorCode': 400, 'errorMessage': "Please only put in at least the chapter the learning object belongs to, OR the parent learning object." });
-                        }
-                        if(isOkToSave){     
-                            // If everything is alright, we should be able to create a new object to add
-                            var newLearnObj = new LearnObj({
-                                title: req.body.title,
-                                belongToChapter: req.body.belongToChapter,
-                                description: req.body.description,
-                                hasLearningResource: [],
-                                hasParentLearnObj: req.body.hasParentLearnObj,
-                                hasChildrenLearnObj: []
-                            });
-                            newLearnObj
-                                .save()
-                                .then((saved) => {
-                                    Users.updateOne({ _id: uploaderDoc._id, __t: uploaderDoc.__t }, { $push: { userActivities: { activityDescription: "Added a learning object with the name " + req.body.title + " with ID: [" + newLearnObj._id + "]." } } }, { upsert: true, safe: true }, function (errorUpdatingUser, updatingResult) {
-                                        if (errorUpdatingUser) {
-                                            if (errorUpdatingUser.name == "CastError") {
-                                                res
-                                                    .status(500)
-                                                    .json({
-                                                        errorCode: 500,
-                                                        errorMessage: "Invalid user ID!",
-                                                    });
-                                                return next();
-                                            } else {
-                                                res
-                                                    .status(500)
-                                                    .json({
-                                                        errorCode: 500,
-                                                        errorMessage: errorUpdatingUser,
-                                                    });
-                                                return next();
-                                            }
-                                        }
-                                    });
-                                    return res.status(200).json({
-                                        result:
-                                            "Successfully created a learning object with name \"" + newLearnObj.title + "\" with ID: " + newLearnObj._id + "!",
-                                    });
-                                })
-                                .catch((saving_err) => {
-                                    return res.status(500).json({ errorCode: 500, errorMessage: saving_err.toString() });
-                                });
                         }
                     }
                 } else {
@@ -822,9 +863,9 @@ exports.addLearnObj = function (req, res){
     });
 }
 
-/**
- * This function is specifically for getting all chapters of a current course
- * the path is /courses/chapters/all with GET request with courseId in the query part of the url
+/** TESTED
+ * This function is specifically for getting all learning objects with a chapter or a parents object
+ * the path is /courses/chapters/learnobj/all with GET request with chapterId or learnobjId in the query part of the url
  * like /courses/chapters/learnobj/all?chapterId=? OR /courses/chapters/learnobj/all?learnobjId=?
  * 
  *
@@ -838,12 +879,11 @@ exports.getAllLearningObjects = function (req, res) { // Anyone who is logged in
             var currentDate = new Date(Date.now());
             var expiredDate = new Date(success_callback.expiredOn);
             if ((currentDate.getTime()) >= (expiredDate.getTime())) {
-                res.status(401).json({ 'errorCode': 401, 'errorMessage': "Unauthorized access! API Key is outdated. Please login and try again!" });
+                return res.status(401).json({ 'errorCode': 401, 'errorMessage': "Unauthorized access! API Key is outdated. Please login and try again!" });
             } else {
                 var uploaderDoc = success_callback.userId;
                 if (req._parsedUrl.query == null || req._parsedUrl.query == undefined) { // if we don't find any query for the specific course id
-                    res.status(400).json({ 'errorCode': 400, 'errorMessage': "Cannot get chapters without the query that has course ID, please add ?courseId=<your course ID>!" });
-                    return;
+                    return res.status(400).json({ 'errorCode': 400, 'errorMessage': "Cannot get learning objects without the query that has chapter ID or the ID of a parent learning object, please add ?chapterId=<your chapter ID> or ?learnobjId=<your learning object ID>!" });
                 } else {
                     // If there is a query
                     // chapter query // Get all learning object for a chapter.
@@ -853,12 +893,12 @@ exports.getAllLearningObjects = function (req, res) { // Anyone who is logged in
                             .populate("hasChildrenLearnObj")
                             .exec(function (errorFindingLearnObj, learnObjList) {
                                 if (errorFindingLearnObj) {
-                                    res.status(500).json({ 'errorCode': 500, 'errorMessage': errorFindingLearnObj.message });
+                                    return res.status(500).json({ 'errorCode': 500, 'errorMessage': errorFindingLearnObj.message });
                                 } else {
                                     if (learnObjList.length == 0) {
-                                        res.status(200).json({ 'results': "There are no learningObjects for that chapter in the database at the moment!" });
+                                        return res.status(200).json({ 'results': "There are no learningObjects for that chapter in the database at the moment!" });
                                     } else {
-                                        res.status(200).json({ 'length': learnObjList.length, 'results': learnObjList });
+                                        return res.status(200).json({ 'length': learnObjList.length, 'results': learnObjList });
                                     }
                                 }
                             });
@@ -870,24 +910,341 @@ exports.getAllLearningObjects = function (req, res) { // Anyone who is logged in
                                 .populate("hasChildrenLearnObj")
                                 .exec(function (errorFindingLearnObj, learnObjList) {
                                     if (errorFindingLearnObj) {
-                                        res.status(500).json({ 'errorCode': 500, 'errorMessage': errorFindingLearnObj.message });
+                                        return res.status(500).json({ 'errorCode': 500, 'errorMessage': errorFindingLearnObj.message });
                                     } else {
                                         if (learnObjList.length == 0) {
-                                            res.status(200).json({ 'results': "There are no learningObjects for that learning object as parent in the database at the moment!" });
+                                            return res.status(200).json({ 'results': "There are no learningObjects for that learning object as parent in the database at the moment!" });
                                         } else {
-                                            res.status(200).json({ 'length': learnObjList.length, 'results': learnObjList });
+                                            return res.status(200).json({ 'length': learnObjList.length, 'results': learnObjList });
                                         }
                                     }
                                 });
                         } else {
                             // If we can't find any query, we will return an error
-                            return res.status(400).json({ 'errorCode': 400, 'errorMessage': "Cannot find learning objects. You must send the GET request to " });                            
+                            return res.status(400).json({ 'errorCode': 400, 'errorMessage': "Cannot find learning objects. You must send the GET request to /courses/chapters/learnobj/all?chapterId=? OR /courses/chapters/learnobj/all?learnobjId=? " });                            
                         }
                     }
                 }
             }
         } else {
             return res.status(401).json({ 'errorCode': 401, 'errorMessage': "Unauthorized access! API Key not found in the server, please login and try again!" });
+        }
+    });
+}
+
+/** TESTED
+ * This function will be in charge of returning a learning object based on the id that the
+ * user passed into the url in the form of 
+ * sending a GET request to /courses/chapters/learnobj/details?learnobjId=<insert learning objective Id>
+ * 
+ * @param {*} req 
+ * @param {*} res 
+ */
+exports.getLearningObjectDetails = function (req, res) {
+    const APIKEY = req.header('APIKEY');
+    Keys.findOne({ key: APIKEY }).populate('userId').lean().then((success_callback) => {
+        if (success_callback != null || success_callback != undefined) {
+            var currentDate = new Date(Date.now());
+            var expiredDate = new Date(success_callback.expiredOn);
+            if ((currentDate.getTime()) >= (expiredDate.getTime())) {
+                res.status(401).json({ 'errorCode': 401, 'errorMessage': "Unauthorized access! API Key is outdated. Please login and try again!" });
+            } else {
+                var uploaderDoc = success_callback.userId;
+                if (req._parsedUrl.query == null || req._parsedUrl.query == undefined) {
+                    // Return an error if the user didn't pass anything in
+                    res.status(400).json({ 'errorCode': 400, 'errorMessage': "Invalid Request! This route is used for taking details of a course! /courses/chapters/learnobj/details?learnobjId=<put your learnobjId here>" });
+                } else {
+                    // if we can't find chapterId, but we have learnobjId instead, we can also return the value
+                    if (req.query.learnobjId != undefined && req.query.learnobjId != null && req.query.learnobjId != "") {
+                        LearnObj.findOne({ hasParentLearnObj: req.query.learnobjId }).lean()
+                            .populate("hasLearningResource")
+                            .populate("hasChildrenLearnObj")
+                            .populate("belongToChapter")
+                            .populate("hasParentLearnObj")
+                            .exec(function (errorFindingLearnObj, learnObj) {
+                                if (errorFindingLearnObj) {
+                                    if (errorFindingLearnObj.name == "CastError") {
+                                        res.status(400).json({ 'errorCode': 400, 'errorMessage': "Invalid Learning Object ID! Please give a valid Learning Object ID" });
+                                    } else {
+                                        res.status(500).json({ 'errorCode': 500, 'errorMessage': errorFindingLearnObj });
+                                    }
+                                } else {
+                                    if (learnObj == null || learnObj == undefined) {
+                                        res.status(400).json({ 'errorCode': 400, 'errorMessage': "Cannot find this Learning Object ID! Please give a valid Learning Object ID!" });
+                                    } else {
+                                        res.status(200).json({ "result": learnObj });
+                                    }
+                                }
+                            });
+                    } else {
+                        // If we can't find any query, we will return an error
+                        return res.status(400).json({ 'errorCode': 400, 'errorMessage': "Cannot find learning object. You must send the GET request to " });
+                    }
+
+                }
+            }
+        } else {
+            res.status(401).json({ 'errorCode': 401, 'errorMessage': "Unauthorized access! API Key not found in the server, please login and try again!" });
+        }
+    });
+}
+
+/** TESTED
+ * This function is specifically for adding new learning resource to a learning object
+ * 
+ * The path is /courses/chapters/learnobj/learnres/add
+ * The required details are:
+ * title
+ * description
+ * belongToLearnObj
+ * typeLearnRes * this is only used by the backend to know what learning resource to create.
+ * 
+ * FOR VIDEO:
+ * hasTranscripts: if there are, if not, [] please 
+ * videoUrl
+ * 
+ * FOR READING:
+ * content
+ * 
+ * FOR QUIZ:
+ * multipleChoicesQuestions
+ * checkboxQuestions
+ * trueFalseQuestions
+ * fillInTheBlankQuestions
+ *
+ * @param {*} req 
+ * @param {*} res 
+ */
+exports.addLearnRes = function (req, res) {
+    const APIKEY = req.header('APIKEY');
+    Keys.findOne({ key: APIKEY }).populate('userId').lean().then((success_callback) => {
+        if (success_callback != null || success_callback != undefined) {
+            var currentDate = new Date(Date.now());
+            var expiredDate = new Date(success_callback.expiredOn);
+            if ((currentDate.getTime()) >= (expiredDate.getTime())) {
+                res.status(401).json({ 'errorCode': 401, 'errorMessage': "Unauthorized access! API Key is outdated. Please login and try again!" });
+            } else {
+                // We will then check if the user is a teacher/admin/superuser and not a student
+                var uploaderDoc = success_callback.userId;
+                if (uploaderDoc.__t === "Teachers" ||
+                    uploaderDoc.__t === "Admin" ||
+                    uploaderDoc.__t === "SuperUser") {
+                    if (req.body.title == undefined || req.body.title == null || req.body.title == "" ||
+                        req.body.description === undefined || req.body.description == null || req.body.description == "" ||
+                        req.body.belongToLearnObj === undefined ||
+                        req.body.typeLearnRes == undefined || req.body.typeLearnRes == null || req.body.typeLearnRes == "") {
+                        res.status(400).json({ 'errorCode': 400, 'errorMessage': "Please fill in all of the details required! (title, description, belongToLearnObj(the ID of the learning objective this belongs to), typeLearnRes('video', 'reading', 'quiz') required!)" });
+                    } else {
+                        var isOkToSave = false;
+                        // We will then check if the belongToLearnObj exists or not.
+                        LearnObj.findOne({ _id: req.body.belongToLearnObj }, function (errorFindingLearnObj, learnObject) { // Check if the course actually exists, if not, we will not create the chapter
+                            if (errorFindingLearnObj) {
+                                if (errorFindingLearnObj.name == "CastError") {
+                                    return res.status(400).json({ 'errorCode': 400, 'errorMessage': "Invalid learnObject ID! Please give a valid learnObject ID to bind this learning resource with!" });
+                                } else {
+                                    return res.status(500).json({ 'errorCode': 500, 'errorMessage': errorFindingLearnObj });
+                                }
+                            } else {
+                                if (learnObject == null || learnObject == undefined) {
+                                    return res.status(400).json({ 'errorCode': 400, 'errorMessage': "Invalid learnObject ID! Please give a valid learnObject ID to bind this learning resource with!" });
+                                } else {
+                                    var newLearnRes = null;
+                                    // We will check the typeLearnRes so that if it's the following situation: video, reading, quiz
+                                    if (req.body.typeLearnRes === "video") {
+                                        if (req.body.hasTranscripts === undefined || req.body.hasTranscripts === null ||
+                                            req.body.videoUrl === undefined || req.body.videoUrl === null || req.body.videoUrl === "") {
+                                            return res.status(400).json({ 'errorCode': 400, 'errorMessage': "Please fill in all of the details required! (hasTranscripts, if doesn't have anything, must be []; videoUrl must be available!)" });
+                                        } else {
+                                            newLearnRes = LearningResVidSchema({
+                                                title: req.body.title,
+                                                description: req.body.description,
+                                                belongToLearnObj: req.body.belongToLearnObj,
+                                                hasTranscripts: req.body.hasTranscripts.length == 0 ? [] : req.body.hasTranscripts,
+                                                videoUrl: req.body.videoUrl
+                                            });
+                                            isOkToSave = true;
+                                        }
+                                        // else, then it's ok
+                                    } else if (req.body.typeLearnRes === "reading") {
+                                        if (req.body.content === undefined || req.body.content === null || req.body.content === "") {
+                                            return res.status(400).json({ 'errorCode': 400, 'errorMessage': "Please fill in all of the details required! (content: '' must be available!)" });
+                                        } else {
+                                            newLearnRes = LearningResReadSchema({
+                                                title: req.body.title,
+                                                description: req.body.description,
+                                                belongToLearnObj: req.body.belongToLearnObj,
+                                                content: req.body.content
+                                            });
+                                            isOkToSave = true;
+                                        }
+                                        // else, then it's ok
+                                    } else if (req.body.typeLearnRes === "quiz") {
+                                        if (req.body.multipleChoicesQuestions === undefined || req.body.multipleChoicesQuestions === null ||
+                                            req.body.checkboxQuestions === undefined || req.body.checkboxQuestions === null ||
+                                            req.body.trueFalseQuestions === undefined || req.body.trueFalseQuestions === null ||
+                                            req.body.fillInTheBlankQuestions === undefined || req.body.fillInTheBlankQuestions === null) {
+                                            return res.status(400).json({ 'errorCode': 400, 'errorMessage': "Please fill in all of the details required! (multipleChoicesQuestions, checkboxQuestions, trueFalseQuestions, fillInTheBlankQuestions  must be available!)" });
+                                        } else {
+                                            newLearnRes = LearningResQuizSchema({
+                                                title: req.body.title,
+                                                description: req.body.description,
+                                                belongToLearnObj: req.body.belongToLearnObj,
+                                                multipleChoicesQuestions: req.body.multipleChoicesQuestions,
+                                                checkboxQuestions: req.body.checkboxQuestions,
+                                                trueFalseQuestions: req.body.trueFalseQuestions,
+                                                fillInTheBlankQuestions: req.body.fillInTheBlankQuestions
+                                            });
+                                            isOkToSave = true;
+                                        }
+                                        // else, then it's ok
+                                    } else {
+                                        return res.status(400).json({ 'errorCode': 400, 'errorMessage': "Please put in valid resource type for the learning resource!" });
+                                    }
+                                    if (isOkToSave && newLearnRes != null) {
+                                        // If everything is alright, we should be able to create a new resource to add                           
+                                        newLearnRes
+                                            .save()
+                                            .then((saved) => {
+                                                Users.updateOne({ _id: uploaderDoc._id, __t: uploaderDoc.__t }, { $push: { userActivities: { activityDescription: "Added a learning resource with the name " + req.body.title + " with ID: [" + newLearnRes._id + "]." } } }, { upsert: true, safe: true }, function (errorUpdatingUser, updatingResult) {
+                                                    if (errorUpdatingUser) {
+                                                        if (errorUpdatingUser.name == "CastError") {
+                                                            res
+                                                                .status(500)
+                                                                .json({
+                                                                    errorCode: 500,
+                                                                    errorMessage: "Invalid user ID!",
+                                                                });
+                                                            return next();
+                                                        } else {
+                                                            res
+                                                                .status(500)
+                                                                .json({
+                                                                    errorCode: 500,
+                                                                    errorMessage: errorUpdatingUser,
+                                                                });
+                                                            return next();
+                                                        }
+                                                    }
+                                                });
+                                                return res.status(200).json({
+                                                    result:
+                                                        "Successfully created a learning resource with name \"" + newLearnRes.title + "\" with ID: " + newLearnRes._id + " in the following learning objective " + newLearnRes.belongToLearnObj + " !",
+                                                });
+                                            })
+                                            .catch((saving_err) => {
+                                                return res.status(500).json({ errorCode: 500, errorMessage: saving_err.toString() });
+                                            });
+                                    }
+                                }
+                            }
+                        });
+                    }
+                } else {
+                    return res.status(403).json({ 'errorCode': 401, 'errorMessage': "This action is unauthorized since you are a student!" });
+                }
+
+            }
+        } else {
+            return res.status(401).json({ 'errorCode': 401, 'errorMessage': "Unauthorized access! API Key not found in the server, please login and try again!" });
+        }
+    });
+}
+/** TESTED
+ * This function is specifically for getting all learning resource with a learning object
+ * the path is /courses/chapters/learnobj/learnres/all with GET request with learnobjId in the query part of the url
+ * like /courses/chapters/learnobj/learnres/all?learnobjId=<learnresID>
+ * 
+ *
+ * @param {*} req 
+ * @param {*} res 
+ */
+exports.getAllLearningResource = function (req, res) { // Anyone who is logged in will be able to get all learning objects for a single chapter.
+    const APIKEY = req.header('APIKEY');
+    Keys.findOne({ key: APIKEY }).populate('userId').lean().then((success_callback) => {
+        if (success_callback != null || success_callback != undefined) {
+            var currentDate = new Date(Date.now());
+            var expiredDate = new Date(success_callback.expiredOn);
+            if ((currentDate.getTime()) >= (expiredDate.getTime())) {
+                return res.status(401).json({ 'errorCode': 401, 'errorMessage': "Unauthorized access! API Key is outdated. Please login and try again!" });
+            } else {
+                var uploaderDoc = success_callback.userId;
+                if (req._parsedUrl.query == null || req._parsedUrl.query == undefined) { // if we don't find any query for the specific course id
+                    return res.status(400).json({ 'errorCode': 400, 'errorMessage': "Cannot get learning resources without the query that has learning object ID ?learnobjId=<your learning object ID>!" });
+                } else {
+                    // If there is a query
+                    if (req.query.learnobjId != undefined && req.query.learnobjId != null && req.query.learnobjId != "") {
+                        LearningResource.find({ belongToLearnObj: req.query.learnobjId }).lean()
+                            .exec(function (errorFindingLearnRes, learnRes) {
+                                if (errorFindingLearnRes) {
+                                    return res.status(500).json({ 'errorCode': 500, 'errorMessage': errorFindingLearnRes.message });
+                                } else {
+                                    if (learnRes.length == 0) {
+                                        return res.status(200).json({ 'results': "There are no learning resources for that learning object in the database at the moment!" });
+                                    } else {
+                                        return res.status(200).json({ 'length': learnRes.length, 'results': learnRes });
+                                    }
+                                }
+                            });
+                    } else {
+                        // If we can't find any query, we will return an error
+                        return res.status(400).json({ 'errorCode': 400, 'errorMessage': "Cannot find learning objects. You must send the GET request to /chapters/learnobj/learnres/all?learnobjId=<learnresID>" });
+                    }
+                }
+            }
+        } else {
+            return res.status(401).json({ 'errorCode': 401, 'errorMessage': "Unauthorized access! API Key not found in the server, please login and try again!" });
+        }
+    });
+}
+
+/** TESTED
+ * This function will be in charge of returning a learning object based on the id that the
+ * user passed into the url in the form of 
+ * sending a GET request to /courses/chapters/learnobj/learnres/details?learnresId=<insert learning resource Id>
+ * 
+ * @param {*} req 
+ * @param {*} res 
+ */
+exports.getLearningResourceDetails = function (req, res) {
+    const APIKEY = req.header('APIKEY');
+    Keys.findOne({ key: APIKEY }).populate('userId').lean().then((success_callback) => {
+        if (success_callback != null || success_callback != undefined) {
+            var currentDate = new Date(Date.now());
+            var expiredDate = new Date(success_callback.expiredOn);
+            if ((currentDate.getTime()) >= (expiredDate.getTime())) {
+                res.status(401).json({ 'errorCode': 401, 'errorMessage': "Unauthorized access! API Key is outdated. Please login and try again!" });
+            } else {
+                var uploaderDoc = success_callback.userId;
+                if (req._parsedUrl.query == null || req._parsedUrl.query == undefined) {
+                    // Return an error if the user didn't pass anything in
+                    res.status(400).json({ 'errorCode': 400, 'errorMessage': "Invalid Request! This route is used for taking details of a course! /courses/chapters/learnobj/learnres/details?learnresId=<insert learning resource Id>" });
+                } else {
+                    if (req.query.learnresId != undefined && req.query.learnresId != null && req.query.learnresId != "") {
+                        LearningResource.findOne({ _id: req.query.learnresId }).lean()
+                            .exec(function (errorFindingLearnRes, learnRes) {
+                                if (errorFindingLearnRes) {
+                                    if (errorFindingLearnRes.name == "CastError") {
+                                        res.status(400).json({ 'errorCode': 400, 'errorMessage': "Invalid Learning Resource ID! Please give a valid Learning Resource ID" });
+                                    } else {
+                                        res.status(500).json({ 'errorCode': 500, 'errorMessage': errorFindingLearnRes });
+                                    }
+                                } else {
+                                    if (learnRes == null || learnRes == undefined) {
+                                        res.status(400).json({ 'errorCode': 400, 'errorMessage': "Cannot find this Learning Resource ID! Please give a valid Learning Resource ID!" });
+                                    } else {
+                                        res.status(200).json({ "result": learnRes });
+                                    }
+                                }
+                            });
+                    } else {
+                        // If we can't find any query, we will return an error
+                        return res.status(400).json({ 'errorCode': 400, 'errorMessage': "Cannot find learning resource. You must send the GET request to /courses/chapters/learnobj/learnres/details?learnresId=<insert learning resource Id>" });
+                    }
+
+                }
+            }
+        } else {
+            res.status(401).json({ 'errorCode': 401, 'errorMessage': "Unauthorized access! API Key not found in the server, please login and try again!" });
         }
     });
 }
