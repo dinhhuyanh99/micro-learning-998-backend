@@ -18,6 +18,7 @@ coursesRouter.get('/chapters/details', coursesControllers.getChapterDetails);
 
 // For LearnObj
 coursesRouter.post('/chapters/learnobj/add', coursesControllers.addLearnObj);
+coursesRouter.get('/chapters/learnobj/all', coursesControllers.getAllLearningObjects);
 
 // For LearnRes
 
