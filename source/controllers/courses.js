@@ -694,6 +694,12 @@ exports.getChapterDetails = function (req, res) {
 /**
  * This function is specifically for adding new learning objectives to a chapter
  * 
+ * The path is /courses/chapters/learnobj/add
+ * The required details are:
+ * title
+ * belongToChapter : null if we have hasParentLearnObj
+ * hasParentLearnObj: null if we have belongToChapter
+ * description
  *
  * @param {*} req 
  * @param {*} res 
